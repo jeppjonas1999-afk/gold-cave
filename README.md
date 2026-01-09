@@ -4,14 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mineshaft Tycoon</title>
+    <title>Mineshaft Tycoon - High Speed</title>
     <style>
         body {
-            background-color: #2c3e50;
-            color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #ecf0f1;
+            font-family: 'Segoe UI', sans-serif;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
@@ -19,125 +18,161 @@
         }
 
         .game-container {
-            background-color: #34495e;
-            padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background-color: #2c3e50;
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
             text-align: center;
-            width: 300px;
+            width: 320px;
+            border: 2px solid #34495e;
         }
 
-        #mineshaft {
-            font-size: 5rem;
-            margin: 20px 0;
-            display: block;
+        .mining-icon {
+            font-size: 4rem;
+            margin: 10px 0;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
 
         .stats {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2ecc71;
+            margin: 15px 0;
         }
 
-        .info {
-            font-size: 0.9rem;
-            color: #bdc3c7;
+        /* Progress bar styling */
+        .progress-container {
+            width: 100%;
+            background-color: #34495e;
+            border-radius: 10px;
+            height: 12px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: #f1c40f;
+            transition: width 0.1s linear;
+        }
+
+        .info-panel {
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 8px;
             margin-bottom: 20px;
+            font-size: 0.9rem;
         }
 
         button {
             background-color: #e67e22;
             border: none;
             color: white;
-            padding: 15px 25px;
+            padding: 15px;
             font-size: 1rem;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.2s;
-            width: 100%;
-        }
-
-        button:hover {
-            background-color: #d35400;
-        }
-
-        button:disabled {
-            background-color: #7f8c8d;
-            cursor: not-allowed;
-        }
-
-        .income-text {
-            color: #2ecc71;
             font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.1s, background 0.2s;
         }
+
+        button:active { transform: scale(0.98); }
+        button:hover { background-color: #d35400; }
+        button:disabled { background-color: #7f8c8d; cursor: not-allowed; opacity: 0.6; }
     </style>
 </head>
 <body>
 
     <div class="game-container">
-        <h1>Mineshaft Tycoon</h1>
+        <h1>Mineshaft</h1>
+        <div class="mining-icon">⛏️</div>
         
-        <div id="mineshaft">🕳️</div>
-        
-        <div class="stats">
-            Balance: $<span id="balance">0</span>
+        <div class="stats">$<span id="balance">0.00</span></div>
+
+        <div class="progress-container">
+            <div id="progress-bar"></div>
         </div>
         
-        <div class="info">
-            Mining Speed: $<span id="rate">1.00</span> / 10s<br>
+        <div class="info-panel">
+            Speed: <span id="speed-display">10.00</span>s per $1<br>
             Level: <span id="level">1</span>
         </div>
 
-        <button id="upgradeBtn">
-            Upgrade Mineshaft (Cost: $<span id="cost">5.00</span>)
+        <button id="upgradeBtn" onclick="upgrade()">
+            Upgrade Speed (Cost: $<span id="cost">5.00</span>)
         </button>
     </div>
 
     <script>
-        // Game State
         let balance = 0;
-        let incomeRate = 1;
         let upgradeCost = 5;
         let level = 1;
+        
+        // Speed settings (in milliseconds)
+        let miningInterval = 10000; 
+        let lastTick = Date.now();
+        let progress = 0;
 
-        // Elements
         const balanceEl = document.getElementById('balance');
-        const rateEl = document.getElementById('rate');
-        const levelEl = document.getElementById('level');
         const costEl = document.getElementById('cost');
+        const levelEl = document.getElementById('level');
+        const speedEl = document.getElementById('speed-display');
+        const bar = document.getElementById('progress-bar');
         const upgradeBtn = document.getElementById('upgradeBtn');
 
-        // Passive Income Logic (Every 10 seconds)
-        setInterval(() => {
-            balance += incomeRate;
-            updateDisplay();
-        }, 10000);
+        // Main Game Loop (runs 60 times per second for smooth visuals)
+        function gameLoop() {
+            let now = Date.now();
+            let deltaTime = now - lastTick;
+            lastTick = now;
 
-        // Upgrade Logic
-        upgradeBtn.addEventListener('click', () => {
+            // Increase progress based on time passed
+            progress += (deltaTime / miningInterval) * 100;
+
+            if (progress >= 100) {
+                progress = 0;
+                balance += 1; // Always earn 1 dollar
+            }
+
+            updateUI();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function upgrade() {
             if (balance >= upgradeCost) {
                 balance -= upgradeCost;
                 
-                // Logic: Double mining speed, increase cost by 1.5x
-                incomeRate *= 2;
-                upgradeCost *= 1.5;
+                // MATH: Divide interval by 2 (double speed)
+                miningInterval = miningInterval / 2;
+                
+                // MATH: Cost increases by 1.5x
+                upgradeCost = upgradeCost * 1.5;
+                
                 level++;
-
-                updateDisplay();
+                progress = 0; // Reset bar on upgrade to sync new speed
             }
-        });
+        }
 
-        function updateDisplay() {
+        function updateUI() {
             balanceEl.innerText = balance.toFixed(2);
-            rateEl.innerText = incomeRate.toFixed(2);
-            levelEl.innerText = level;
             costEl.innerText = upgradeCost.toFixed(2);
+            levelEl.innerText = level;
+            speedEl.innerText = (miningInterval / 1000).toFixed(3);
+            bar.style.width = progress + "%";
 
-            // Disable button if player can't afford it
             upgradeBtn.disabled = balance < upgradeCost;
         }
 
-        // Run once to initialize button state
-        updateDisplay();
+        // Start the game
+        requestAnimationFrame(gameLoop);
     </script>
 </body>
 </html>
