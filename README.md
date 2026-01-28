@@ -3,165 +3,192 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mineshaft Tycoon</title>
+    <title>Mineshaft Tycoon - 3x3 Grid</title>
     <style>
         body {
             background-color: #1a1a1a;
             color: white;
             font-family: sans-serif;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 20px;
         }
-        .game-box {
-            background: #2c3e50;
-            padding: 30px;
-            border-radius: 20px;
+        .header {
             text-align: center;
-            width: 350px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
         }
         .balance-display {
-            font-size: 2.5rem;
+            font-size: 3rem;
             color: #2ecc71;
-            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        /* 3x3 Rutenett */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            max-width: 1000px;
+        }
+        .mine-card {
+            background: #2c3e50;
+            padding: 15px;
+            border-radius: 15px;
+            width: 200px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .for-sale {
+            background: #34495e;
+            border: 2px dashed #7f8c8d;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .for-sale:hover {
+            background: #3e5871;
+            transform: scale(1.02);
         }
         .progress-bg {
             width: 100%;
-            background: #34495e;
-            height: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
+            background: #1a1a1a;
+            height: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
             overflow: hidden;
         }
-        #progress-bar {
+        .progress-bar {
             width: 0%;
             height: 100%;
             background: #f1c40f;
         }
-        .shop {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
         button {
-            padding: 15px;
-            font-size: 1rem;
-            font-weight: bold;
+            width: 100%;
+            padding: 8px;
+            margin: 2px 0;
+            border-radius: 5px;
             border: none;
-            border-radius: 8px;
             cursor: pointer;
-            transition: 0.2s;
+            font-weight: bold;
         }
-        .speed-btn { background: #3498db; color: white; }
-        .yield-btn { background: #9b59b6; color: white; }
-        
-        button:hover:not(:disabled) { opacity: 0.8; transform: translateY(-2px); }
+        .buy-btn { background: #e67e22; color: white; }
+        .upg-btn { background: #3498db; color: white; font-size: 0.8rem; }
         button:disabled { background: #7f8c8d; cursor: not-allowed; }
-        
-        .stats-text {
-            font-size: 0.9rem;
-            color: #bdc3c7;
-            margin-bottom: 15px;
-        }
     </style>
 </head>
 <body>
 
-<div class="game-box">
-    <h1>Mineshaft</h1>
-    <div class="balance-display">$<span id="balance">0.00</span></div>
-    
-    <div class="stats-text">
-        Speed: <span id="speed-label">10.0</span>s | 
-        Earn: $<span id="yield-label">1.0</span>
-    </div>
-
-    <div class="progress-bg">
-        <div id="progress-bar"></div>
-    </div>
-
-    <div class="shop">
-        <button id="speedBtn" class="speed-btn">
-            Upgrade Speed (Cost: $<span id="s-cost">5.00</span>)
-        </button>
-        <button id="yieldBtn" class="yield-btn">
-            Upgrade Yield (Cost: $<span id="y-cost">5.00</span>)
-        </button>
-    </div>
+<div class="header">
+    <h1>Mineshaft Tycoon</h1>
+    <div class="balance-display">$<span id="total-balance">0.00</span></div>
 </div>
 
+<div class="grid-container" id="grid">
+    </div>
+
 <script>
-    // Variables
     let money = 0;
-    let yieldAmount = 1;
-    let speedMs = 10000; // 10 seconds
-    let speedCost = 5;
-    let yieldCost = 5;
+    let mines = [
+        { owned: true, yield: 1, speed: 10000, progress: 0, upgCost: 5 }
+    ];
     
-    let progress = 0;
+    // Opprett 8 ekstra tomme sjakter
+    for(let i = 0; i < 8; i++) {
+        mines.push({ owned: false, buyCost: 500 * Math.pow(10, i) });
+    }
+
+    const gridEl = document.getElementById('grid');
+    const balEl = document.getElementById('total-balance');
+
+    function updateUI() {
+        balEl.innerText = money.toLocaleString(undefined, {minimumFractionDigits: 2});
+        gridEl.innerHTML = '';
+
+        mines.forEach((mine, index) => {
+            const card = document.createElement('div');
+            card.className = 'mine-card';
+
+            if (mine.owned) {
+                card.innerHTML = `
+                    <h3>Sjakt ${index + 1}</h3>
+                    <div class="progress-bg"><div class="progress-bar" id="bar-${index}" style="width: ${mine.progress}%"></div></div>
+                    <p>$${mine.yield.toFixed(1)} / ${(mine.speed/1000).toFixed(1)}s</p>
+                    <button class="upg-btn" onclick="upgradeMine(${index})">Upgrade ($${mine.upgCost.toFixed(0)})</button>
+                `;
+            } else {
+                card.classList.add('for-sale');
+                card.onclick = () => buyMine(index);
+                card.innerHTML = `
+                    <h2 style="color: #e74c3c;">FOR SALG</h2>
+                    <p>Pris: $${mine.buyCost.toLocaleString()}</p>
+                    <button class="buy-btn" ${money < mine.buyCost ? 'disabled' : ''}>KJØP</button>
+                `;
+            }
+            gridEl.appendChild(card);
+        });
+    }
+
+    function buyMine(index) {
+        if (money >= mines[index].buyCost) {
+            money -= mines[index].buyCost;
+            mines[index] = { 
+                owned: true, 
+                yield: (index + 1) * 5, // Nye gruver starter sterkere
+                speed: 10000, 
+                progress: 0, 
+                upgCost: mines[index].buyCost * 0.1 
+            };
+            updateUI();
+        }
+    }
+
+    function upgradeMine(index) {
+        if (money >= mines[index].upgCost) {
+            money -= mines[index].upgCost;
+            mines[index].yield *= 1.5;
+            mines[index].upgCost *= 2;
+            updateUI();
+        }
+    }
+
     let lastTime = Date.now();
-
-    // Elements
-    const balEl = document.getElementById('balance');
-    const barEl = document.getElementById('progress-bar');
-    const sCostEl = document.getElementById('s-cost');
-    const yCostEl = document.getElementById('y-cost');
-    const sLabEl = document.getElementById('speed-label');
-    const yLabEl = document.getElementById('yield-label');
-    const speedBtn = document.getElementById('speedBtn');
-    const yieldBtn = document.getElementById('yieldBtn');
-
-    function mainLoop() {
+    function gameLoop() {
         let now = Date.now();
         let diff = now - lastTime;
         lastTime = now;
 
-        // Progress the bar
-        progress += (diff / speedMs) * 100;
+        mines.forEach((mine, index) => {
+            if (mine.owned) {
+                mine.progress += (diff / mine.speed) * 100;
+                if (mine.progress >= 100) {
+                    mine.progress = 0;
+                    money += mine.yield;
+                }
+                // Oppdater bare fremgangsmåleren for ytelse
+                const bar = document.getElementById(`bar-${index}`);
+                if (bar) bar.style.width = mine.progress + "%";
+            }
+        });
 
-        if (progress >= 100) {
-            progress = 0;
-            money += yieldAmount;
-        }
+        balEl.innerText = money.toLocaleString(undefined, {minimumFractionDigits: 2});
+        
+        // Sjekk om kjøpe-knapper skal aktiveres
+        document.querySelectorAll('.buy-btn').forEach((btn, i) => {
+            // Logikk her for å finne riktig index
+        });
 
-        // Update UI
-        balEl.innerText = money.toFixed(2);
-        barEl.style.width = progress + "%";
-        sCostEl.innerText = speedCost.toFixed(2);
-        yCostEl.innerText = yieldCost.toFixed(2);
-        sLabEl.innerText = (speedMs / 1000).toFixed(2);
-        yLabEl.innerText = yieldAmount.toFixed(2);
-
-        // Check if buttons should be disabled
-        speedBtn.disabled = (money < speedCost);
-        yieldBtn.disabled = (money < yieldCost);
-
-        requestAnimationFrame(mainLoop);
+        requestAnimationFrame(gameLoop);
     }
 
-    // Button Click Events
-    speedBtn.onclick = () => {
-        if (money >= speedCost) {
-            money -= speedCost;
-            speedMs /= 2;
-            speedCost *= 1.5;
-            progress = 0;
-        }
-    };
-
-    yieldBtn.onclick = () => {
-        if (money >= yieldCost) {
-            money -= yieldCost;
-            yieldAmount *= 2;
-            yieldCost *= 1.5;
-        }
-    };
-
-    // Start
-    requestAnimationFrame(mainLoop);
+    // Kjør UI-oppdatering regelmessig (ikke hver frame for å spare krefter)
+    setInterval(updateUI, 1000);
+    
+    updateUI();
+    requestAnimationFrame(gameLoop);
 </script>
 
 </body>
