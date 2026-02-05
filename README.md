@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mineshaft Tycoon - Fixed Grid</title>
+    <title>Mineshaft Tycoon - Dynamic Pricing</title>
     <style>
         body {
             background-color: #1a1a1a;
@@ -46,15 +46,16 @@
             border: 4px solid #f1c40f;
         }
 
-        .for-sale { background: #34495e; border: 2px dashed #7f8c8d; cursor: pointer; }
+        .for-sale { background: #34495e; border: 2px dashed #7f8c8d; cursor: pointer; transition: 0.2s; }
+        .for-sale:hover { background: #3e5871; }
+        
         .progress-bg { width: 100%; background: #1a1a1a; height: 12px; border-radius: 6px; overflow: hidden; }
         .progress-bar { width: 0%; height: 100%; background: #f1c40f; }
 
         button { width: 100%; padding: 8px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; }
         .buy-btn { background: #e67e22; color: white; }
-        .locked { background: #1a1a1a; color: #e74c3c; cursor: default; border: 1px solid #e74c3c; }
+        .locked-btn { background: #1a1a1a; color: #e74c3c; cursor: default; border: 1px solid #e74c3c; }
         
-        /* Modal */
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 100;
@@ -91,23 +92,25 @@
 </div>
 
 <script>
-    let money = 10;
+    let money = 500; // Starter med nok til første gruve
     let globalMultiplier = 1;
     let globalSpeedBonus = 1;
+    let baseBuyCost = 500; 
     let mines = [];
 
     function initMines() {
         for(let i = 0; i < 9; i++) {
-            if (i === 4) { // Setter markedet i midten (index 4)
+            if (i === 4) { 
                 mines.push({ type: 'market' });
             } else if (i === 0) {
+                // Første gruve er gratis/allerede eid for å komme i gang
                 mines.push({
-                    type: 'mine', owned: true, yield: 1, speed: 5000, progress: 0,
-                    yieldCost: 5, speedCost: 5, yieldUpgraded: false, speedUpgraded: false
+                    type: 'mine', owned: true, yield: 2, speed: 5000, progress: 0,
+                    yieldCost: 50, speedCost: 50, yieldUpgraded: false, speedUpgraded: false
                 });
             } else {
-                // Justerer prisen så de ikke blir ekstremt dyre med en gang
-                mines.push({ type: 'mine', owned: false, buyCost: 50 * Math.pow(4, i) });
+                // Alle andre starter på 500
+                mines.push({ type: 'mine', owned: false, buyCost: baseBuyCost });
             }
         }
     }
@@ -123,11 +126,10 @@
             if (mine.type === 'market') {
                 card.className = 'mine-card market-building';
                 card.onclick = toggleMarket;
-                card.innerHTML = `<h2>MARKED</h2><p>Klikk for globale bonuser</p><div style="font-size: 3rem">🏪</div>`;
+                card.innerHTML = `<h2>MARKED</h2><p>Oppgraderinger</p><div style="font-size: 3rem">🏪</div>`;
             } else {
                 card.className = mine.owned ? 'mine-card' : 'mine-card for-sale';
                 if (!mine.owned) card.onclick = () => buyMine(index);
-                // Vi kaller update funksjonen med en gang for å fylle innholdet
                 gridEl.appendChild(card);
                 updateMineUI(index);
             }
@@ -141,17 +143,62 @@
         if (!mine || mine.type !== 'mine' || !card) return;
 
         if (mine.owned) {
-            const yBtn = mine.yieldUpgraded ? `<button class="locked" disabled>LÅST</button>` : `<button class="buy-btn" onclick="upgradeYield(${index}, event)">+60% $ ($${mine.yieldCost})</button>`;
-            const sBtn = mine.speedUpgraded ? `<button class="locked" disabled>LÅST</button>` : `<button class="buy-btn" style="background:#9b59b6" onclick="upgradeSpeed(${index}, event)">-20% Tid ($${mine.speedCost})</button>`;
+            const yBtn = mine.yieldUpgraded ? `<button class="locked-btn" disabled>LÅST</button>` : `<button class="buy-btn" onclick="upgradeYield(${index}, event)">+60% $ ($${mine.yieldCost})</button>`;
+            const sBtn = mine.speedUpgraded ? `<button class="locked-btn" disabled>LÅST</button>` : `<button class="buy-btn" style="background:#9b59b6" onclick="upgradeSpeed(${index}, event)">-20% Tid ($${mine.speedCost})</button>`;
 
             card.innerHTML = `
                 <h3 style="margin:0">Sjakt ${index + 1}</h3>
                 <div class="progress-bg"><div class="progress-bar" id="bar-${index}"></div></div>
-                <div style="font-size: 0.9rem">Inntekt: $${(mine.yield * globalMultiplier).toFixed(1)}</div>
+                <div style="font-size: 0.9rem">$${(mine.yield * globalMultiplier).toFixed(1)} / ${(mine.speed/1000).toFixed(1)}s</div>
                 ${yBtn} ${sBtn}
             `;
         } else {
-            card.innerHTML = `<h3>LÅST</h3><p>Pris: $${mine.buyCost.toLocaleString()}</p><button class="buy-btn">KJØP</button>`;
+            card.innerHTML = `<h3>LÅST</h3><p>Pris: <b>$${mine.buyCost.toLocaleString()}</b></p><button class="buy-btn">KJØP</button>`;
+        }
+    }
+
+    function buyMine(index) {
+        if (!mines[index].owned && money >= mines[index].buyCost) {
+            money -= mines[index].buyCost;
+            
+            // Konfigurer den nye gruven
+            mines[index].owned = true;
+            mines[index].yield = (index + 1) * 5;
+            mines[index].speed = 6000;
+            mines[index].progress = 0;
+            mines[index].yieldCost = 200;
+            mines[index].speedCost = 200;
+            mines[index].yieldUpgraded = false;
+            mines[index].speedUpgraded = false;
+
+            // ØK PRISEN PÅ ALLE ANDRE GRUVER MED 10x
+            mines.forEach(m => {
+                if (m.type === 'mine' && !m.owned) {
+                    m.buyCost *= 10;
+                }
+            });
+
+            renderGrid();
+        }
+    }
+
+    function upgradeYield(index, event) {
+        event.stopPropagation();
+        if (money >= mines[index].yieldCost) {
+            money -= mines[index].yieldCost;
+            mines[index].yield *= 1.6;
+            mines[index].yieldUpgraded = true;
+            updateMineUI(index);
+        }
+    }
+
+    function upgradeSpeed(index, event) {
+        event.stopPropagation();
+        if (money >= mines[index].speedCost) {
+            money -= mines[index].speedCost;
+            mines[index].speed *= 0.8;
+            mines[index].speedUpgraded = true;
+            updateMineUI(index);
         }
     }
 
@@ -160,9 +207,50 @@
         modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
     }
 
-    function buyMine(index) {
-        if (!mines[index].owned && money >= mines[index].buyCost) {
-            money -= mines[index].buyCost;
-            mines[index].owned = true;
-            mines[index].yield = (index + 1) * 2;
-            mines[index].speed =
+    function buyGlobalMultiplier() {
+        if (money >= 5000) {
+            money -= 5000;
+            globalMultiplier += 0.25;
+            document.getElementById('m-mult').innerText = "KJØPT";
+            document.getElementById('m-mult').disabled = true;
+            mines.forEach((m, i) => { if(m.type==='mine' && m.owned) updateMineUI(i); });
+        }
+    }
+
+    function buyGlobalSpeed() {
+        if (money >= 10000) {
+            money -= 10000;
+            globalSpeedBonus = 1.15;
+            document.getElementById('m-speed').innerText = "KJØPT";
+            document.getElementById('m-speed').disabled = true;
+        }
+    }
+
+    function gameLoop() {
+        let now = Date.now();
+        let diff = now - (window.lastTime || now);
+        window.lastTime = now;
+
+        mines.forEach((mine, index) => {
+            if (mine.type === 'mine' && mine.owned) {
+                mine.progress += (diff / (mine.speed / globalSpeedBonus)) * 100;
+                if (mine.progress >= 100) {
+                    mine.progress = 0;
+                    money += (mine.yield * globalMultiplier);
+                }
+                const bar = document.getElementById(`bar-${index}`);
+                if (bar) bar.style.width = mine.progress + "%";
+            }
+        });
+
+        document.getElementById('total-balance').innerText = money.toLocaleString(undefined, {minimumFractionDigits: 2});
+        requestAnimationFrame(gameLoop);
+    }
+
+    initMines();
+    renderGrid();
+    gameLoop();
+</script>
+
+</body>
+</html>
