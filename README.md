@@ -218,3 +218,45 @@
             money -= 5000;
             globalMultiplier += 0.25;
             document.getElementById('m-mult').innerText = "KJØPT";
+            document.getElementById('m-mult').disabled = true;
+            mines.forEach((_, i) => updateMineUI(i));
+        }
+    }
+
+    function buyGlobalSpeed() {
+        if (money >= 10000) {
+            money -= 10000;
+            globalSpeedBonus = 1.1;
+            document.getElementById('m-speed').innerText = "KJØPT";
+            document.getElementById('m-speed').disabled = true;
+        }
+    }
+
+    function gameLoop() {
+        let now = Date.now();
+        let diff = now - (window.lastTime || now);
+        window.lastTime = now;
+
+        mines.forEach((mine, index) => {
+            if (mine.type === 'mine' && mine.owned) {
+                mine.progress += (diff / (mine.speed / globalSpeedBonus)) * 100;
+                if (mine.progress >= 100) {
+                    mine.progress = 0;
+                    money += (mine.yield * globalMultiplier);
+                }
+                const bar = document.getElementById(`bar-${index}`);
+                if (bar) bar.style.width = mine.progress + "%";
+            }
+        });
+
+        document.getElementById('total-balance').innerText = money.toLocaleString(undefined, {minimumFractionDigits: 2});
+        requestAnimationFrame(gameLoop);
+    }
+
+    initMines();
+    renderGrid();
+    gameLoop();
+</script>
+
+</body>
+</html>
