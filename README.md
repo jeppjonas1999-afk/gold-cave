@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mineshaft Tycoon - Hard Start</title>
+    <title>Mineshaft Tycoon - The Slow Grind</title>
     <style>
         body {
             background-color: #1a1a1a;
@@ -44,7 +44,6 @@
             flex-direction: column;
             justify-content: space-between;
             font-size: 0.85rem;
-            position: relative;
         }
 
         .market-building {
@@ -64,7 +63,7 @@
         .market-building:hover { transform: scale(1.05); }
 
         .for-sale { background: #34495e; border: 2px dashed #7f8c8d; cursor: pointer; }
-        .progress-bg { width: 100%; background: #1a1a1a; height: 10px; border-radius: 5px; overflow: hidden; margin: 5px 0; cursor: pointer; }
+        .progress-bg { width: 100%; background: #1a1a1a; height: 10px; border-radius: 5px; overflow: hidden; margin: 5px 0; }
         .progress-bar { width: 0%; height: 100%; background: #f1c40f; transition: width 0.1s linear; }
 
         button { width: 100%; padding: 6px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; font-size: 0.75rem; }
@@ -125,16 +124,17 @@
 </div>
 
 <script>
-    let money = 0; // Starter med 0 kr
+    let money = 0; 
     let maxLevels = 3; 
     let capCost = 250; 
     let mines = [];
 
-    const START_YIELD = 10;
-    const START_SPEED = 5000;
+    // NYE START-STATS
+    const START_YIELD = 1;      // $1 per gang
+    const START_SPEED = 10000;  // 10 sekunder
     const START_UPG_COST = 5; 
     const PRICE_MULT = 1.55; 
-    const POWER_MULT = 1.6; // 1.6x bedre per oppgradering
+    const POWER_MULT = 1.6;
 
     function initMines() {
         for(let i = 0; i < 9; i++) {
@@ -142,7 +142,7 @@
                 mines.push({
                     owned: true, yield: START_YIELD, speed: START_SPEED, progress: 0,
                     yieldCost: START_UPG_COST, speedCost: START_UPG_COST,
-                    yieldLvl: 0, speedLvl: 0, auto: false
+                    yieldLvl: 0, speedLvl: 0
                 });
             } else {
                 mines.push({ owned: false, buyCost: 500 });
@@ -179,7 +179,7 @@
 
             card.innerHTML = `
                 <strong style="color:#f1c40f">Sjakt ${index + 1}</strong>
-                <div class="progress-bg" onclick="manualClick(${index}, event)">
+                <div class="progress-bg">
                     <div class="progress-bar" id="bar-${index}"></div>
                 </div>
                 <div style="font-size: 0.75rem; margin: 3px 0;">
@@ -193,21 +193,13 @@
         }
     }
 
-    function manualClick(index, event) {
-        event.stopPropagation();
-        const mine = mines[index];
-        if (mine.owned && !mine.auto) {
-            mine.auto = true; // Starter automatisering ved første klikk
-        }
-    }
-
     function buyMine(index) {
         if (!mines[index].owned && money >= mines[index].buyCost) {
             money -= mines[index].buyCost;
             mines[index] = {
                 owned: true, yield: START_YIELD, speed: START_SPEED, progress: 0,
                 yieldCost: START_UPG_COST, speedCost: START_UPG_COST,
-                yieldLvl: 0, speedLvl: 0, auto: true
+                yieldLvl: 0, speedLvl: 0
             };
             mines.forEach(m => { if(!m.owned) m.buyCost *= 10; });
             renderGrid();
@@ -270,7 +262,6 @@
 
         mines.forEach((mine, index) => {
             if (mine.owned) {
-                // Sjakten starter med 0 progress, brukeren må klikke eller så starter den auto
                 mine.progress += (diff / mine.speed) * 100;
                 
                 if (mine.progress >= 100) {
@@ -279,7 +270,7 @@
                 }
                 
                 const bar = document.getElementById(`bar-${index}`);
-                if (bar) bar.style.width = mine.progress + "%";
+                if (bar) bar.style.width = Math.min(mine.progress, 100) + "%";
                 
                 const yBtn = document.getElementById(`y-btn-${index}`);
                 const sBtn = document.getElementById(`s-btn-${index}`);
