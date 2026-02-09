@@ -126,7 +126,7 @@
 <script>
     let money = 0; 
     let maxLevels = 3; 
-    let capCost = 250; 
+    let capCost = 62.5; 
     let mines = [];
 
     // NYE START-STATS
