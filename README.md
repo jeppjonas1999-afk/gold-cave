@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mineshaft Tycoon - The Slow Grind</title>
+    <title>Mineshaft Tycoon - Multiplier Edition</title>
     <style>
         body {
             background-color: #1a1a1a;
@@ -24,6 +24,13 @@
             gap: 20px;
             align-items: flex-start;
             justify-content: center;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
         }
 
         .grid-container {
@@ -52,7 +59,7 @@
             cursor: pointer;
             border: 3px solid #f1c40f;
             width: 130px;
-            height: 130px;
+            height: 100px;
             border-radius: 12px;
             display: flex;
             flex-direction: column;
@@ -62,9 +69,31 @@
         }
         .market-building:hover { transform: scale(1.05); }
 
+        /* Multiplikator knapper */
+        .multiplier-container {
+            display: flex;
+            gap: 5px;
+            width: 130px;
+        }
+        .mult-btn {
+            flex: 1;
+            padding: 8px 0;
+            background: #34495e;
+            color: white;
+            border: 2px solid #7f8c8d;
+            font-size: 0.7rem;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .mult-btn.active {
+            background: #f1c40f;
+            color: #1a1a1a;
+            border-color: #d4ac0d;
+        }
+
         .for-sale { background: #34495e; border: 2px dashed #7f8c8d; cursor: pointer; }
-        .progress-bg { width: 100%; background: #1a1a1a; height: 10px; border-radius: 5px; overflow: hidden; margin: 5px 0; }
-        .progress-bar { width: 0%; height: 100%; background: #f1c40f; transition: width 0.1s linear; }
+        .progress-bg { width: 100%; background: #1a1a1a; height: 10px; border-radius: 5px; overflow: hidden; margin: 5px 0; cursor: pointer; }
+        .progress-bar { width: 0%; height: 100%; background: #f1c40f; }
 
         button { width: 100%; padding: 6px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; font-size: 0.75rem; }
         .buy-btn { background: #e67e22; color: white; }
@@ -85,13 +114,6 @@
             background: #2c3e50; padding: 20px; border-radius: 15px; width: 320px;
             border: 2px solid #f1c40f; text-align: center;
         }
-        .market-ui-box {
-            background: #34495e;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 10px;
-            border: 1px solid #f1c40f;
-        }
     </style>
 </head>
 <body>
@@ -104,22 +126,31 @@
 
 <div class="game-area">
     <div class="grid-container" id="grid"></div>
-    <div class="market-building" onclick="toggleMarket()">
-        <h3 style="margin:0">MARKED</h3>
-        <div style="font-size: 2rem">🏪</div>
+    
+    <div class="sidebar">
+        <div class="market-building" onclick="toggleMarket()">
+            <h3 style="margin:0">MARKED</h3>
+            <div style="font-size: 1.5rem">🏪</div>
+        </div>
+
+        <div class="multiplier-container">
+            <button class="mult-btn active" id="m1" onclick="setMultiplier(1)">1x</button>
+            <button class="mult-btn" id="m10" onclick="setMultiplier(10)">10x</button>
+            <button class="mult-btn" id="mMax" onclick="setMultiplier('Max')">Max</button>
+        </div>
     </div>
 </div>
 
 <div class="modal-overlay" id="market-modal">
     <div class="modal-content">
-        <h2 style="color: #f1c40f; margin:0">GLOBALT MARKED</h2>
-        <div class="market-ui-box">
-            <h3 style="margin-top:0">📜 Utvidelsestillatelse</h3>
-            <p style="font-size: 0.85rem;">Øker grensen for oppgraderinger med +3 på alle sjakter.</p>
-            <p id="cap-price-display" style="color: #2ecc71; font-weight: bold; font-size: 1.1rem;">Pris: $250</p>
-            <button class="buy-btn" onclick="buyCapUpgrade()" id="btn-buy-cap">KJØP OPPGRADERING</button>
+        <h2 style="color: #f1c40f; margin:0">MARKED</h2>
+        <div style="background:#34495e; padding:15px; margin:15px 0; border-radius:10px;">
+            <h3>📜 Utvidelsestillatelse</h3>
+            <p>Gir +3 nivåer til alle gruver.</p>
+            <p id="cap-price-display" style="color: #2ecc71; font-weight: bold;">Pris: $250</p>
+            <button class="buy-btn" onclick="buyCapUpgrade()" id="btn-buy-cap">KJØP +3</button>
         </div>
-        <button style="background:#e74c3c; color:white; padding: 10px;" onclick="toggleMarket()">AVSLUTT</button>
+        <button style="background:#e74c3c; color:white;" onclick="toggleMarket()">LUKK</button>
     </div>
 </div>
 
@@ -128,10 +159,10 @@
     let maxLevels = 3; 
     let capCost = 62.5; 
     let mines = [];
+    let currentMultiplier = 1;
 
-    // NYE START-STATS
-    const START_YIELD = 1;      // $1 per gang
-    const START_SPEED = 10000;  // 10 sekunder
+    const START_YIELD = 1;      
+    const START_SPEED = 10000;  
     const START_UPG_COST = 5; 
     const PRICE_MULT = 1.55; 
     const POWER_MULT = 1.6;
@@ -142,12 +173,47 @@
                 mines.push({
                     owned: true, yield: START_YIELD, speed: START_SPEED, progress: 0,
                     yieldCost: START_UPG_COST, speedCost: START_UPG_COST,
-                    yieldLvl: 0, speedLvl: 0
+                    yieldLvl: 0, speedLvl: 0, active: false
                 });
             } else {
                 mines.push({ owned: false, buyCost: 500 });
             }
         }
+    }
+
+    // MULTIPLIKATOR FUNKSJON
+    function setMultiplier(val) {
+        currentMultiplier = val;
+        document.querySelectorAll('.mult-btn').forEach(b => b.classList.remove('active'));
+        if(val === 1) document.getElementById('m1').classList.add('active');
+        if(val === 10) document.getElementById('m10').classList.add('active');
+        if(val === 'Max') document.getElementById('mMax').classList.add('active');
+        mines.forEach((_, i) => updateMineUI(i));
+    }
+
+    // Kalkuler pris for flere oppgraderinger
+    function getMultiUpgradeStats(currentLvl, currentCost) {
+        let totalCost = 0;
+        let count = 0;
+        let tempCost = currentCost;
+        let target = (currentMultiplier === 'Max') ? maxLevels - currentLvl : currentMultiplier;
+        
+        for (let i = 0; i < target; i++) {
+            if (currentLvl + count >= maxLevels) break;
+            if (money >= totalCost + tempCost) {
+                totalCost += tempCost;
+                tempCost *= PRICE_MULT;
+                count++;
+            } else {
+                if (currentMultiplier !== 'Max') {
+                    // Hvis man ikke har råd til f.eks 10x, vis totalprisen for 10 uansett
+                    totalCost += tempCost; 
+                    tempCost *= PRICE_MULT;
+                    count++;
+                } else break;
+            }
+        }
+        return { totalCost, count };
     }
 
     function renderGrid() {
@@ -166,30 +232,66 @@
     function updateMineUI(index) {
         const mine = mines[index];
         const card = document.getElementById(`mine-${index}`);
-        if (!card) return;
+        if (!card || !mine.owned) return;
 
-        if (mine.owned) {
-            let yBtn = mine.yieldLvl >= maxLevels 
-                ? `<button class="locked-btn" disabled>LÅST (Maks)</button>` 
-                : `<button class="buy-btn" id="y-btn-${index}" onclick="upgradeYield(${index}, event)">$ +60% ($${Math.ceil(mine.yieldCost)})</button>`;
+        let yStats = getMultiUpgradeStats(mine.yieldLvl, mine.yieldCost);
+        let sStats = getMultiUpgradeStats(mine.speedLvl, mine.speedCost);
 
-            let sBtn = mine.speedLvl >= maxLevels 
-                ? `<button class="locked-btn" disabled>LÅST (Maks)</button>` 
-                : `<button class="upg-speed" id="s-btn-${index}" onclick="upgradeSpeed(${index}, event)">Fart +60% ($${Math.ceil(mine.speedCost)})</button>`;
+        let yBtn = mine.yieldLvl >= maxLevels 
+            ? `<button class="locked-btn" disabled>LÅST</button>` 
+            : `<button class="buy-btn" id="y-btn-${index}" onclick="upgradeYield(${index}, event)">$ (${yStats.count}x) - $${Math.ceil(yStats.totalCost)}</button>`;
 
-            card.innerHTML = `
-                <strong style="color:#f1c40f">Sjakt ${index + 1}</strong>
-                <div class="progress-bg">
-                    <div class="progress-bar" id="bar-${index}"></div>
-                </div>
-                <div style="font-size: 0.75rem; margin: 3px 0;">
-                    Verdi: $${mine.yield.toLocaleString(undefined, {maximumFractionDigits: 1})}<br>
-                    Syklus: ${(mine.speed/1000).toFixed(1)}s
-                </div>
-                <div>${yBtn}${sBtn}</div>
-            `;
-        } else {
-            card.innerHTML = `<strong>LÅST SJAKT</strong><p style="margin:5px 0;">Pris: $${mine.buyCost.toLocaleString()}</p><button class="buy-btn">KJØP</button>`;
+        let sBtn = mine.speedLvl >= maxLevels 
+            ? `<button class="locked-btn" disabled>LÅST</button>` 
+            : `<button class="upg-speed" id="s-btn-${index}" onclick="upgradeSpeed(${index}, event)">Fart (${sStats.count}x) - $${Math.ceil(sStats.totalCost)}</button>`;
+
+        card.innerHTML = `
+            <strong style="color:#f1c40f">Sjakt ${index + 1}</strong>
+            <div class="progress-bg" onclick="activateMine(${index})">
+                <div class="progress-bar" id="bar-${index}"></div>
+            </div>
+            <div style="font-size: 0.75rem; margin: 3px 0;">
+                Verdi: $${mine.yield.toLocaleString(undefined, {maximumFractionDigits: 1})}<br>
+                Syklus: ${(mine.speed/1000).toFixed(1)}s
+            </div>
+            <div>${yBtn}${sBtn}</div>
+        `;
+    }
+
+    function activateMine(index) {
+        if (mines[index].owned && !mines[index].active) {
+            mines[index].active = true;
+            updateMineUI(index);
+        }
+    }
+
+    function upgradeYield(index, event) {
+        event.stopPropagation();
+        let mine = mines[index];
+        let stats = getMultiUpgradeStats(mine.yieldLvl, mine.yieldCost);
+        if (stats.count > 0 && money >= stats.totalCost) {
+            money -= stats.totalCost;
+            for(let i=0; i<stats.count; i++) {
+                mine.yield *= POWER_MULT;
+                mine.yieldCost *= PRICE_MULT;
+                mine.yieldLvl++;
+            }
+            updateMineUI(index);
+        }
+    }
+
+    function upgradeSpeed(index, event) {
+        event.stopPropagation();
+        let mine = mines[index];
+        let stats = getMultiUpgradeStats(mine.speedLvl, mine.speedCost);
+        if (stats.count > 0 && money >= stats.totalCost) {
+            money -= stats.totalCost;
+            for(let i=0; i<stats.count; i++) {
+                mine.speed /= POWER_MULT;
+                mine.speedCost *= PRICE_MULT;
+                mine.speedLvl++;
+            }
+            updateMineUI(index);
         }
     }
 
@@ -199,34 +301,10 @@
             mines[index] = {
                 owned: true, yield: START_YIELD, speed: START_SPEED, progress: 0,
                 yieldCost: START_UPG_COST, speedCost: START_UPG_COST,
-                yieldLvl: 0, speedLvl: 0
+                yieldLvl: 0, speedLvl: 0, active: true
             };
             mines.forEach(m => { if(!m.owned) m.buyCost *= 10; });
             renderGrid();
-        }
-    }
-
-    function upgradeYield(index, event) {
-        event.stopPropagation();
-        let mine = mines[index];
-        if (mine.yieldLvl < maxLevels && money >= mine.yieldCost) {
-            money -= mine.yieldCost;
-            mine.yield *= POWER_MULT;
-            mine.yieldCost *= PRICE_MULT;
-            mine.yieldLvl++;
-            updateMineUI(index);
-        }
-    }
-
-    function upgradeSpeed(index, event) {
-        event.stopPropagation();
-        let mine = mines[index];
-        if (mine.speedLvl < maxLevels && money >= mine.speedCost) {
-            money -= mine.speedCost;
-            mine.speed /= POWER_MULT;
-            mine.speedCost *= PRICE_MULT;
-            mine.speedLvl++;
-            updateMineUI(index);
         }
     }
 
@@ -237,10 +315,8 @@
     }
 
     function updateMarketUI() {
-        const priceEl = document.getElementById('cap-price-display');
-        if(priceEl) priceEl.innerText = `Pris: $${capCost.toLocaleString()}`;
-        const btn = document.getElementById('btn-buy-cap');
-        if(btn) btn.disabled = money < capCost;
+        document.getElementById('cap-price-display').innerText = `Pris: $${capCost.toLocaleString()}`;
+        document.getElementById('btn-buy-cap').disabled = money < capCost;
     }
 
     function buyCapUpgrade() {
@@ -261,21 +337,26 @@
         lastTime = now;
 
         mines.forEach((mine, index) => {
-            if (mine.owned) {
+            if (mine.owned && mine.active) {
                 mine.progress += (diff / mine.speed) * 100;
-                
                 if (mine.progress >= 100) {
                     mine.progress = 0;
                     money += mine.yield;
                 }
-                
                 const bar = document.getElementById(`bar-${index}`);
                 if (bar) bar.style.width = Math.min(mine.progress, 100) + "%";
                 
+                // Dynamisk sjekk om man har råd til valgt multiplikator
                 const yBtn = document.getElementById(`y-btn-${index}`);
                 const sBtn = document.getElementById(`s-btn-${index}`);
-                if(yBtn) yBtn.disabled = money < mine.yieldCost;
-                if(sBtn) sBtn.disabled = money < mine.speedCost;
+                if(yBtn) {
+                    let s = getMultiUpgradeStats(mine.yieldLvl, mine.yieldCost);
+                    yBtn.disabled = money < s.totalCost || s.count === 0;
+                }
+                if(sBtn) {
+                    let s = getMultiUpgradeStats(mine.speedLvl, mine.speedCost);
+                    sBtn.disabled = money < s.totalCost || s.count === 0;
+                }
             }
         });
 
