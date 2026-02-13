@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mineshaft Tycoon - Safety Cap Update</title>
+    <title>Mineshaft Tycoon - Worker Buff Update</title>
     <style>
         body {
             background-color: #1a1a1a;
@@ -50,7 +50,6 @@
             overflow: hidden;
         }
 
-        /* Kollaps-styling */
         .collapsed-overlay {
             position: absolute; top:0; left:0; width:100%; height:100%;
             background: rgba(0, 0, 0, 0.85);
@@ -95,7 +94,6 @@
         }
         .mult-btn.active { background: #f1c40f; color: #1a1a1a; border-color: #d4ac0d; }
 
-        /* ARBEIDER STASJON */
         .worker-station {
             background: #34495e;
             border: 2px solid #95a5a6;
@@ -108,11 +106,9 @@
         .worker-count { font-size: 0.8rem; color: #bdc3c7; }
         .worker-icon-static { font-size: 1.5rem; }
 
-        /* Dynamisk arbeider som beveger seg */
         .worker-unit {
             position: absolute;
             font-size: 1.5rem;
-            transition: top 0.1s linear, left 0.1s linear;
             z-index: 100;
             pointer-events: none;
         }
@@ -193,7 +189,7 @@
 
         <div class="market-item">
             <h3 style="margin:0">⚡ Arbeidskurs</h3>
-            <p style="font-size: 0.8rem;">Arbeidere reparerer 20% raskere.</p>
+            <p style="font-size: 0.8rem;">Reparasjon +20%, Bevegelse +25%.</p>
             <p id="wspeed-price-display" style="color: #2ecc71; font-weight: bold;">Pris: $500</p>
             <button class="buy-btn" onclick="buyWorkerSpeed()" id="btn-buy-wspeed" style="background:#9b59b6;">OPPGRADER</button>
         </div>
@@ -203,18 +199,17 @@
 </div>
 
 <script>
-    // --- VARIABLER ---
     let money = 0; 
     let maxLevels = 3; 
     let capCost = 62.5; 
     let mines = [];
     let currentMultiplier = 1;
 
-    // Arbeider Variabler
     let workers = []; 
     let workerCost = 100;
     let workerSpeedCost = 500;
-    let workerSpeedMult = 1.0; 
+    let workerRepairMult = 1.0; 
+    let workerMoveMult = 1.0; // Ny multiplikator for bevegelse
     let baseRepairTime = 5000; 
 
     const START_YIELD = 1;      
@@ -223,7 +218,6 @@
     const PRICE_MULT = 1.55; 
     const POWER_MULT = 1.6;
 
-    // --- INIT ---
     function initMines() {
         for(let i = 0; i < 9; i++) {
             if (i === 0) {
@@ -231,7 +225,8 @@
                     owned: true, yield: START_YIELD, speed: START_SPEED, progress: 0,
                     yieldCost: START_UPG_COST, speedCost: START_UPG_COST,
                     yieldLvl: 0, speedLvl: 0, active: false,
-                    isCollapsed: false, repairProgress: 0
+                    isCollapsed: false, repairProgress: 0,
+                    graceTimer: 0 // Timer for beskyttelse mot rasing
                 });
             } else {
                 mines.push({ owned: false, buyCost: 500 });
@@ -239,13 +234,13 @@
         }
     }
 
-    // --- GAME LOGIC: COLLAPSE ---
     function checkCollapse(index) {
         let mine = mines[index];
-        // Sjanse basert på totalt nivå (0.2% per nivå)
-        let calculatedRisk = (mine.yieldLvl + mine.speedLvl) * 0.2; 
         
-        // --- HER ER ENDRINGEN: MAKS 30% SJANSE ---
+        // Sjekk om gruven er i "grace period" (beskyttet)
+        if (mine.graceTimer > 0) return;
+
+        let calculatedRisk = (mine.yieldLvl + mine.speedLvl) * 0.2; 
         let risk = Math.min(calculatedRisk, 30); 
 
         if (Math.random() * 100 < risk) {
@@ -257,7 +252,7 @@
         let mine = mines[index];
         mine.isCollapsed = true;
         mine.repairProgress = 0;
-        mine.active = false; // Stopper produksjon
+        mine.active = false; 
         updateMineUI(index);
     }
 
@@ -265,7 +260,6 @@
         if(event) event.stopPropagation();
         let mine = mines[index];
         if (mine.isCollapsed) {
-            // Trenger 25 klikk. 100 / 25 = 4 progress per klikk.
             mine.repairProgress += 4;
             if (mine.repairProgress >= 100) {
                 completeRepair(index);
@@ -278,9 +272,9 @@
         let mine = mines[index];
         mine.isCollapsed = false;
         mine.repairProgress = 0;
-        mine.active = true; // Starter igjen automatisk
+        mine.active = true; 
+        mine.graceTimer = 2500; // 2,5 sekunder beskyttelse etter fiks
         
-        // Hvis en arbeider fikset denne, frigjør ham
         let worker = workers.find(w => w.targetIndex === index);
         if (worker) {
             worker.state = 'returning';
@@ -289,7 +283,6 @@
         updateMineUI(index);
     }
 
-    // --- WORKER LOGIC ---
     function createWorker() {
         let id = 'worker-' + Date.now() + Math.random();
         let el = document.createElement('div');
@@ -298,37 +291,35 @@
         el.id = id;
         document.getElementById('worker-layer').appendChild(el);
         
-        // Startposisjon (ved stasjonen)
         let station = document.getElementById('worker-station').getBoundingClientRect();
-        el.style.top = (station.top + 20) + 'px';
-        el.style.left = (station.left + 20) + 'px';
+        let startX = station.left + 20 + window.scrollX;
+        let startY = station.top + 20 + window.scrollY;
 
         return {
             id: id,
-            state: 'idle', // idle, moving_to, working, returning
+            state: 'idle',
             targetIndex: null,
             workTimer: 0,
-            x: station.left + 20,
-            y: station.top + 20
+            x: startX,
+            y: startY
         };
     }
 
     function updateWorkers(diff) {
         let stationRect = document.getElementById('worker-station').getBoundingClientRect();
-        let stationX = stationRect.left + 30;
-        let stationY = stationRect.top + 30;
+        let stationX = stationRect.left + 30 + window.scrollX;
+        let stationY = stationRect.top + 30 + window.scrollY;
 
-        // Oppdater antall ledige i UI
         let idleCount = workers.filter(w => w.state === 'idle').length;
         let totalCount = workers.length;
         document.getElementById('worker-count-display').innerText = totalCount > 0 ? `${idleCount}/${totalCount} ledige` : "Ingen ansatt";
 
         workers.forEach(w => {
             let el = document.getElementById(w.id);
-            let speed = 0.3 * diff; // Piksler per frame-tid
+            // Bevegelseshastighet øker med 25% per oppgradering
+            let speed = 0.3 * diff * workerMoveMult; 
 
             if (w.state === 'idle') {
-                // Sjekk om noen gruver er ødelagt og ikke har en arbeider på vei
                 let collapsedIndex = mines.findIndex((m, idx) => 
                     m.isCollapsed && 
                     !workers.some(worker => worker.targetIndex === idx)
@@ -345,8 +336,8 @@
                 let card = document.getElementById(`mine-${w.targetIndex}`);
                 if (card) {
                     let rect = card.getBoundingClientRect();
-                    let targetX = rect.left + rect.width / 2;
-                    let targetY = rect.top + rect.height / 2;
+                    let targetX = rect.left + rect.width / 2 + window.scrollX;
+                    let targetY = rect.top + rect.height / 2 + window.scrollY;
                     
                     if (moveTowards(w, targetX, targetY, speed)) {
                         w.state = 'working';
@@ -355,11 +346,11 @@
                 }
             }
             else if (w.state === 'working') {
-                let requiredTime = baseRepairTime / workerSpeedMult;
+                let requiredTime = baseRepairTime / workerRepairMult;
                 w.workTimer += diff;
 
                 let mine = mines[w.targetIndex];
-                if(mine.isCollapsed) {
+                if(mine && mine.isCollapsed) {
                     let progressPercent = (w.workTimer / requiredTime) * 100;
                     mine.repairProgress = Math.max(mine.repairProgress, progressPercent);
                     
@@ -399,7 +390,6 @@
         }
     }
 
-    // --- UI FUNCTIONS ---
     function updateMineUI(index) {
         const mine = mines[index];
         const card = document.getElementById(`mine-${index}`);
@@ -456,7 +446,6 @@
         }
     }
 
-    // --- STANDARD GAME FUNCTIONS ---
     function setMultiplier(val) {
         currentMultiplier = val;
         document.querySelectorAll('.mult-btn').forEach(b => b.classList.remove('active'));
@@ -543,14 +532,13 @@
                 owned: true, yield: START_YIELD, speed: START_SPEED, progress: 0,
                 yieldCost: START_UPG_COST, speedCost: START_UPG_COST,
                 yieldLvl: 0, speedLvl: 0, active: true,
-                isCollapsed: false, repairProgress: 0
+                isCollapsed: false, repairProgress: 0, graceTimer: 0
             };
             mines.forEach(m => { if(!m.owned) m.buyCost *= 10; });
             renderGrid();
         }
     }
 
-    // --- MARKET FUNKSJONER ---
     function toggleMarket() {
         const modal = document.getElementById('market-modal');
         modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
@@ -564,7 +552,7 @@
         document.getElementById('worker-price-display').innerText = `Pris: $${workerCost.toLocaleString()}`;
         document.getElementById('btn-buy-worker').disabled = money < workerCost;
 
-        document.getElementById('wspeed-price-display').innerText = `Pris: $${workerSpeedCost.toLocaleString()} (Fart: ${(workerSpeedMult*100).toFixed(0)}%)`;
+        document.getElementById('wspeed-price-display').innerText = `Pris: $${workerSpeedCost.toLocaleString()}`;
         document.getElementById('btn-buy-wspeed').disabled = money < workerSpeedCost;
     }
 
@@ -582,7 +570,7 @@
     function buyWorker() {
         if (money >= workerCost) {
             money -= workerCost;
-            workerCost *= 2; // Prisdobling
+            workerCost *= 2; 
             workers.push(createWorker());
             updateMarketUI();
         }
@@ -592,35 +580,38 @@
         if (money >= workerSpeedCost) {
             money -= workerSpeedCost;
             workerSpeedCost *= 1.5;
-            workerSpeedMult += 0.2; // +20%
+            workerRepairMult += 0.2; // +20% fiks
+            workerMoveMult += 0.25;  // +25% fart
             updateMarketUI();
         }
     }
 
-    // --- MAIN LOOP ---
     let lastTime = Date.now();
     function gameLoop() {
         let now = Date.now();
         let diff = now - lastTime;
         lastTime = now;
 
-        // Oppdater gruver
         mines.forEach((mine, index) => {
             if (mine.owned) {
+                // Håndter Grace Timer (beskyttelse mot rasing)
+                if (mine.graceTimer > 0) {
+                    mine.graceTimer -= diff;
+                }
+
                 if (!mine.isCollapsed && mine.active) {
                     mine.progress += (diff / mine.speed) * 100;
                     if (mine.progress >= 100) {
                         mine.progress = 0;
                         money += mine.yield;
-                        checkCollapse(index); // Sjekk for kollaps når syklus er ferdig
+                        checkCollapse(index); 
                     }
                 } 
                 else if (mine.isCollapsed) {
-                    // Decay logic
                     let beingFixed = workers.some(w => w.targetIndex === index && w.state === 'working');
                     
                     if (!beingFixed && mine.repairProgress > 0) {
-                        mine.repairProgress -= (0.05 * (diff/16)); // Sakte decay
+                        mine.repairProgress -= (0.05 * (diff/16)); 
                         if(mine.repairProgress < 0) mine.repairProgress = 0;
                         
                         const bar = document.getElementById(`repair-bar-${index}`);
@@ -628,7 +619,6 @@
                     }
                 }
 
-                // UI Oppdatering
                 const bar = document.getElementById(`bar-${index}`);
                 if (bar) bar.style.width = Math.min(mine.progress, 100) + "%";
                 
