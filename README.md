@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mineshaft Tycoon - Multiplier Edition</title>
+    <title>Mineshaft Tycoon - Classic UI</title>
     <style>
         body {
             background-color: #1a1a1a;
@@ -26,13 +26,6 @@
             justify-content: center;
         }
 
-        .sidebar {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            align-items: center;
-        }
-
         .grid-container {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -53,13 +46,20 @@
             font-size: 0.85rem;
         }
 
+        /* Høyre kolonne med marked og knapper */
+        .controls-column {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
         .market-building {
             background: #d4ac0d;
             color: #1a1a1a;
             cursor: pointer;
             border: 3px solid #f1c40f;
             width: 130px;
-            height: 100px;
+            height: 130px;
             border-radius: 12px;
             display: flex;
             flex-direction: column;
@@ -69,10 +69,10 @@
         }
         .market-building:hover { transform: scale(1.05); }
 
-        /* Multiplikator knapper */
-        .multiplier-container {
+        /* Multiplikator knapper i rekke */
+        .multiplier-row {
             display: flex;
-            gap: 5px;
+            gap: 4px;
             width: 130px;
         }
         .mult-btn {
@@ -80,10 +80,11 @@
             padding: 8px 0;
             background: #34495e;
             color: white;
-            border: 2px solid #7f8c8d;
+            border: 1px solid #7f8c8d;
             font-size: 0.7rem;
             border-radius: 5px;
             cursor: pointer;
+            font-weight: bold;
         }
         .mult-btn.active {
             background: #f1c40f;
@@ -127,13 +128,13 @@
 <div class="game-area">
     <div class="grid-container" id="grid"></div>
     
-    <div class="sidebar">
+    <div class="controls-column">
         <div class="market-building" onclick="toggleMarket()">
             <h3 style="margin:0">MARKED</h3>
-            <div style="font-size: 1.5rem">🏪</div>
+            <div style="font-size: 2rem">🏪</div>
         </div>
 
-        <div class="multiplier-container">
+        <div class="multiplier-row">
             <button class="mult-btn active" id="m1" onclick="setMultiplier(1)">1x</button>
             <button class="mult-btn" id="m10" onclick="setMultiplier(10)">10x</button>
             <button class="mult-btn" id="mMax" onclick="setMultiplier('Max')">Max</button>
@@ -143,14 +144,14 @@
 
 <div class="modal-overlay" id="market-modal">
     <div class="modal-content">
-        <h2 style="color: #f1c40f; margin:0">MARKED</h2>
+        <h2 style="color: #f1c40f; margin:0">GLOBALT MARKED</h2>
         <div style="background:#34495e; padding:15px; margin:15px 0; border-radius:10px;">
-            <h3>📜 Utvidelsestillatelse</h3>
-            <p>Gir +3 nivåer til alle gruver.</p>
-            <p id="cap-price-display" style="color: #2ecc71; font-weight: bold;">Pris: $250</p>
-            <button class="buy-btn" onclick="buyCapUpgrade()" id="btn-buy-cap">KJØP +3</button>
+            <h3 style="margin-top:0">📜 Utvidelsestillatelse</h3>
+            <p style="font-size: 0.85rem;">Øker grensen for oppgraderinger med +3 på alle sjakter.</p>
+            <p id="cap-price-display" style="color: #2ecc71; font-weight: bold; font-size: 1.1rem;">Pris: $62.5</p>
+            <button class="buy-btn" onclick="buyCapUpgrade()" id="btn-buy-cap">KJØP OPPGRADERING</button>
         </div>
-        <button style="background:#e74c3c; color:white;" onclick="toggleMarket()">LUKK</button>
+        <button style="background:#e74c3c; color:white; padding: 10px;" onclick="toggleMarket()">AVSLUTT</button>
     </div>
 </div>
 
@@ -181,36 +182,31 @@
         }
     }
 
-    // MULTIPLIKATOR FUNKSJON
     function setMultiplier(val) {
         currentMultiplier = val;
         document.querySelectorAll('.mult-btn').forEach(b => b.classList.remove('active'));
-        if(val === 1) document.getElementById('m1').classList.add('active');
-        if(val === 10) document.getElementById('m10').classList.add('active');
-        if(val === 'Max') document.getElementById('mMax').classList.add('active');
+        document.getElementById('m' + val).classList.add('active');
         mines.forEach((_, i) => updateMineUI(i));
     }
 
-    // Kalkuler pris for flere oppgraderinger
     function getMultiUpgradeStats(currentLvl, currentCost) {
         let totalCost = 0;
         let count = 0;
         let tempCost = currentCost;
-        let target = (currentMultiplier === 'Max') ? maxLevels - currentLvl : currentMultiplier;
+        let limit = (currentMultiplier === 'Max') ? maxLevels - currentLvl : currentMultiplier;
         
-        for (let i = 0; i < target; i++) {
+        for (let i = 0; i < limit; i++) {
             if (currentLvl + count >= maxLevels) break;
-            if (money >= totalCost + tempCost) {
-                totalCost += tempCost;
-                tempCost *= PRICE_MULT;
-                count++;
-            } else {
-                if (currentMultiplier !== 'Max') {
-                    // Hvis man ikke har råd til f.eks 10x, vis totalprisen for 10 uansett
-                    totalCost += tempCost; 
+            if (currentMultiplier === 'Max') {
+                if (money >= totalCost + tempCost) {
+                    totalCost += tempCost;
                     tempCost *= PRICE_MULT;
                     count++;
                 } else break;
+            } else {
+                totalCost += tempCost;
+                tempCost *= PRICE_MULT;
+                count++;
             }
         }
         return { totalCost, count };
@@ -239,11 +235,11 @@
 
         let yBtn = mine.yieldLvl >= maxLevels 
             ? `<button class="locked-btn" disabled>LÅST</button>` 
-            : `<button class="buy-btn" id="y-btn-${index}" onclick="upgradeYield(${index}, event)">$ (${yStats.count}x) - $${Math.ceil(yStats.totalCost)}</button>`;
+            : `<button class="buy-btn" id="y-btn-${index}" onclick="upgradeYield(${index}, event)">$ (${yStats.count}x) $${Math.ceil(yStats.totalCost)}</button>`;
 
         let sBtn = mine.speedLvl >= maxLevels 
             ? `<button class="locked-btn" disabled>LÅST</button>` 
-            : `<button class="upg-speed" id="s-btn-${index}" onclick="upgradeSpeed(${index}, event)">Fart (${sStats.count}x) - $${Math.ceil(sStats.totalCost)}</button>`;
+            : `<button class="upg-speed" id="s-btn-${index}" onclick="upgradeSpeed(${index}, event)">Tid (${sStats.count}x) $${Math.ceil(sStats.totalCost)}</button>`;
 
         card.innerHTML = `
             <strong style="color:#f1c40f">Sjakt ${index + 1}</strong>
@@ -346,7 +342,6 @@
                 const bar = document.getElementById(`bar-${index}`);
                 if (bar) bar.style.width = Math.min(mine.progress, 100) + "%";
                 
-                // Dynamisk sjekk om man har råd til valgt multiplikator
                 const yBtn = document.getElementById(`y-btn-${index}`);
                 const sBtn = document.getElementById(`s-btn-${index}`);
                 if(yBtn) {
