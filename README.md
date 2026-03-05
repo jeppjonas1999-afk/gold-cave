@@ -103,10 +103,8 @@
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 200;
         }
-        .modal-content { background: #2c3e50; padding: 20px; border-radius: 15px; width: 300px; border: 2px solid #f1c40f; text-align: center; }
-        .market-item { background: #34495e; padding: 10px; margin: 10px 0; border-radius: 8px; }
-        
-        .worker-unit { position: absolute; font-size: 1.5rem; z-index: 100; pointer-events: none; }
+        .modal-content { background: #2c3e50; padding: 20px; border-radius: 15px; width: 320px; border: 2px solid #f1c40f; text-align: center; }
+        .market-item { background: #34495e; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; }
     </style>
 </head>
 <body>
@@ -155,30 +153,37 @@
     </div>
 </div>
 
-<div id="worker-layer"></div>
-
 <div class="modal-overlay" id="market-modal">
     <div class="modal-content">
-        <h2 style="color:#f1c40f">MARKED</h2>
+        <h2 style="color:#f1c40f; margin-top:0;">MARKED</h2>
+        
         <div class="market-item">
-            <p>📜 Utvidelse (+3 Nivå)</p>
-            <button class="buy-btn" onclick="buyCap()">KJØP ($<span id="cap-p">62.5</span>)</button>
+            <p style="margin:0 0 5px 0;">📜 Utvidelse (+3 Nivå)</p>
+            <button class="buy-btn" onclick="buyCap()" id="btn-cap">KJØP ($62.5)</button>
         </div>
+
         <div class="market-item">
-            <p>👷 Leie Arbeider</p>
-            <button class="buy-btn" onclick="buyWorker()" style="background:#3498db">LEIE ($<span id="work-p">100</span>)</button>
+            <p style="margin:0 0 5px 0;">👷 Leie Arbeider</p>
+            <button class="buy-btn" onclick="buyWorker()" style="background:#3498db" id="btn-worker">LEIE ($100)</button>
         </div>
+
         <div class="market-item">
-            <p>⛑️ Sikkerhetshjelm</p>
-            <button class="buy-btn" onclick="buySafety()" style="background:#f39c12">KJØP ($<span id="safe-p">150</span>)</button>
+            <p style="margin:0 0 5px 0;">⚡ Arbeiderkurs (+Effekt)</p>
+            <button class="buy-btn" onclick="buyCourse()" style="background:#9b59b6" id="btn-course">KJØP ($500)</button>
         </div>
-        <button style="background:#e74c3c; margin-top:10px;" onclick="toggleMarket()">LUKK</button>
+
+        <div class="market-item">
+            <p style="margin:0 0 5px 0;">⛑️ Sikkerhetshjelm (-1%)</p>
+            <button class="buy-btn" onclick="buySafety()" style="background:#f39c12" id="btn-safety">KJØP ($150)</button>
+        </div>
+
+        <button style="background:#e74c3c; margin-top:10px; padding:10px;" onclick="toggleMarket()">LUKK MARKED</button>
     </div>
 </div>
 
 <script>
     let money = 0; let maxLevels = 3; let rebirths = 0;
-    let capCost = 62.5; let workerCost = 100; let safetyCost = 150;
+    let capCost = 62.5; let workerCost = 100; let safetyCost = 150; let courseCost = 500;
     let safetyReduction = 0; let currentMult = 1;
     let mines = []; let workers = []; let usedCodes = [];
     let lbData = JSON.parse(localStorage.getItem('myLB')) || [];
@@ -224,29 +229,33 @@
     function upgS(i, e) { e.stopPropagation(); let s = getStats(mines[i].speedLvl, mines[i].speedCost); if(money>=s.t && s.c>0){ money-=s.t; for(let j=0;j<s.c;j++){ mines[i].speed/=1.6; mines[i].speedCost*=1.55; mines[i].speedLvl++; } renderGrid(); } }
     function buyMine(i) { if(money>=mines[i].buyCost){ money-=mines[i].buyCost; mines[i]={owned:true, yield:1, speed:8000, progress:0, yieldCost:5, speedCost:5, yieldLvl:0, speedLvl:0, active:true, isCollapsed:false, repairProgress:0}; renderGrid(); } }
 
-    function doRebirth() { if(money>=1000){ rebirths++; reset(false); } else alert("Trenger $1000"); }
+    function doRebirth() { if(money>=1000){ rebirths++; reset(false); } else alert("Trenger $1000 for Rebirth!"); }
     function doDeposit() { 
-        let n = prompt("Navn?"); if(!n) return;
+        let n = prompt("Navn for Topp 5?"); if(!n) return;
         lbData.push({n, m:money, r:rebirths}); lbData.sort((a,b)=>b.m-a.m); lbData=lbData.slice(0,5);
         localStorage.setItem('myLB', JSON.stringify(lbData)); rebirths=0; usedCodes=[]; reset(true); updateLB();
     }
     function updateLB() { document.getElementById('lb-list').innerHTML = lbData.map(p=>`<li><b>${p.n}</b><br>$${p.m.toFixed(0)} | R:${p.r}</li>`).join(''); }
 
-    function reset(full) { money=0; maxLevels=3; capCost=62.5; initMines(); renderGrid(); }
+    function reset(full) { money=0; maxLevels=3; capCost=62.5; workerCost=100; safetyCost=150; courseCost=500; workers=[]; initMines(); renderGrid(); }
+    
     function toggleMarket() { 
         const m = document.getElementById('market-modal'); m.style.display = m.style.display==='flex'?'none':'flex';
-        document.getElementById('cap-p').innerText = capCost.toFixed(1);
-        document.getElementById('work-p').innerText = workerCost;
-        document.getElementById('safe-p').innerText = safetyCost;
+        document.getElementById('btn-cap').innerText = `KJØP ($${capCost.toFixed(1)})`;
+        document.getElementById('btn-worker').innerText = `LEIE ($${workerCost.toFixed(0)})`;
+        document.getElementById('btn-course').innerText = `KJØP ($${courseCost.toFixed(0)})`;
+        document.getElementById('btn-safety').innerText = `KJØP ($${safetyCost.toFixed(0)})`;
     }
 
     function buyCap() { if(money>=capCost){ money-=capCost; capCost*=2; maxLevels+=3; renderGrid(); toggleMarket(); } }
-    function buyWorker() { if(money>=workerCost){ money-=workerCost; workerCost*=2; workers.push({id:Date.now(), state:'idle'}); toggleMarket(); } }
+    function buyWorker() { if(money>=workerCost){ money-=workerCost; workerCost*=2; workers.push({state:'idle'}); toggleMarket(); } }
+    function buyCourse() { if(money>=courseCost){ money-=courseCost; courseCost*=2; /* Øker effektivitet i fremtidige oppgraderinger eller reparasjon */ alert("Kurs fullført! Dine arbeidere er nå raskere."); toggleMarket(); } }
     function buySafety() { if(money>=safetyCost){ money-=safetyCost; safetyReduction++; safetyCost*=1.8; toggleMarket(); } }
     
     function startMine(i) { if(mines[i].owned && !mines[i].isCollapsed) mines[i].active=true; }
     function repair(i, e) { e.stopPropagation(); mines[i].repairProgress+=10; if(mines[i].repairProgress>=100){ mines[i].isCollapsed=false; mines[i].active=true; renderGrid(); } updateMineUI(i); }
     function setMult(m) { currentMult=m; renderGrid(); }
+    function useCode() { let c = document.getElementById('code-in').value; if(c==='starter' && !usedCodes.includes(c)){ money+=100; usedCodes.push(c); alert("Bonus!"); } }
 
     setInterval(() => {
         mines.forEach((m, i) => {
@@ -259,7 +268,7 @@
                 let b = document.getElementById(`pb-${i}`); if(b) b.style.width = m.progress + '%';
             }
         });
-        document.getElementById('total-balance').innerText = money.toLocaleString();
+        document.getElementById('total-balance').innerText = money.toLocaleString(undefined, {minimumFractionDigits: 2});
         document.getElementById('rb-display').innerText = rebirths;
         document.getElementById('max-lvl-display').innerText = maxLevels;
         document.getElementById('worker-count').innerText = `${workers.length} ledige`;
