@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mineshaft Tycoon - Gold Cave Edition</title>
+    <title>Mineshaft Tycoon - Gold Cave</title>
     <style>
         body {
             background-color: #1a1a1a;
@@ -33,7 +33,6 @@
             grid-template-columns: repeat(3, 1fr);
             gap: 10px;
             width: 580px;
-            min-height: 400px; /* Sikrer at plassen er der */
         }
 
         .mine-card {
@@ -102,18 +101,20 @@
             padding: 10px;
             min-height: 60px;
             text-align: center;
+            position: relative;
         }
-        .worker-count { font-size: 0.8rem; color: #bdc3c7; }
-        
+
+        /* KODEBOKS */
         .code-station {
             background: #273746;
             border: 2px dashed #7f8c8d;
             border-radius: 12px;
             padding: 10px;
             text-align: center;
+            margin-top: 5px;
         }
         .code-input {
-            width: 90%;
+            width: 80%;
             padding: 5px;
             border-radius: 4px;
             border: none;
@@ -122,6 +123,9 @@
             text-align: center;
         }
 
+        .worker-count { font-size: 0.8rem; color: #bdc3c7; }
+        .worker-icon-static { font-size: 1.5rem; }
+
         .worker-unit {
             position: absolute;
             font-size: 1.5rem;
@@ -129,6 +133,7 @@
             pointer-events: none;
         }
 
+        /* PARTIKLER */
         .particle {
             position: fixed;
             pointer-events: none;
@@ -159,6 +164,7 @@
         .modal-content {
             background: #2c3e50; padding: 20px; border-radius: 15px; width: 340px;
             border: 2px solid #f1c40f; text-align: center;
+            max-height: 80vh; overflow-y: auto;
         }
         .market-item {
             background: #34495e; padding: 10px; margin: 10px 0; border-radius: 8px; border: 1px solid #7f8c8d;
@@ -170,7 +176,7 @@
 <div class="header">
     <h1 style="margin: 5px 0;">Mineshaft Tycoon</h1>
     <div class="balance-display">$<span id="total-balance">0.00</span></div>
-    <div style="color: #f1c40f; font-size: 0.85rem;">Maks Nivå: <span id="max-lvl-display">3</span> | Risiko-reduksjon: <span id="safety-display">0</span>%</div>
+    <div style="color: #f1c40f; font-size: 0.85rem;">Maks Nivå: <span id="max-lvl-display">3</span></div>
 </div>
 
 <div class="game-area">
@@ -190,7 +196,7 @@
 
         <div class="worker-station" id="worker-station">
             <div style="font-size:0.8rem; font-weight:bold; color:#3498db;">ARBEIDERE</div>
-            <div style="font-size: 1.5rem">👷</div>
+            <div class="worker-icon-static">👷</div>
             <div class="worker-count" id="worker-count-display">0 ledige</div>
         </div>
 
@@ -206,24 +212,37 @@
 
 <div class="modal-overlay" id="market-modal">
     <div class="modal-content">
-        <h2 style="color: #f1c40f; margin:0">MARKED</h2>
+        <h2 style="color: #f1c40f; margin:0">GLOBALT MARKED</h2>
         
         <div class="market-item">
-            <p>📜 <strong>Utvidelsestillatelse</strong> (+$62.5)</p>
-            <button class="buy-btn" onclick="buyCapUpgrade()" id="btn-buy-cap">KJØP (+3 Nivå)</button>
+            <h3 style="margin:0">📜 Utvidelsestillatelse</h3>
+            <p style="font-size: 0.8rem;">+3 nivåer til alle gruver.</p>
+            <p id="cap-price-display" style="color: #2ecc71; font-weight: bold;">Pris: $62.5</p>
+            <button class="buy-btn" onclick="buyCapUpgrade()" id="btn-buy-cap">KJØP</button>
         </div>
 
         <div class="market-item">
-            <p>⛑️ <strong>Sikkerhetshjelm</strong> ($<span id="safety-cost">150</span>)</p>
-            <button class="buy-btn" onclick="buySafetyHelmet()" id="btn-buy-safety" style="background:#f39c12;">KJØP (-1% Risiko)</button>
+            <h3 style="margin:0">⛑️ Sikkerhetshjelm</h3>
+            <p style="font-size: 0.8rem;">Senker rase-sjanse med 1%. (Min. 1%)</p>
+            <p id="safety-price-display" style="color: #2ecc71; font-weight: bold;">Pris: $150</p>
+            <button class="buy-btn" onclick="buySafetyHelmet()" id="btn-buy-safety" style="background:#f39c12;">KJØP</button>
         </div>
 
         <div class="market-item">
-            <p>👷 <strong>Arbeider</strong> ($<span id="worker-cost">100</span>)</p>
+            <h3 style="margin:0">👷 Leie Arbeider</h3>
+            <p style="font-size: 0.8rem;">Reparerer automatisk ødelagte gruver.</p>
+            <p id="worker-price-display" style="color: #2ecc71; font-weight: bold;">Pris: $100</p>
             <button class="buy-btn" onclick="buyWorker()" id="btn-buy-worker" style="background:#3498db;">LEIE</button>
         </div>
 
-        <button style="background:#e74c3c; color:white; padding: 10px; margin-top:10px;" onclick="toggleMarket()">LUKK</button>
+        <div class="market-item">
+            <h3 style="margin:0">⚡ Arbeidskurs</h3>
+            <p style="font-size: 0.8rem;">Reparasjon +20%, Bevegelse +25%.</p>
+            <p id="wspeed-price-display" style="color: #2ecc71; font-weight: bold;">Pris: $500</p>
+            <button class="buy-btn" onclick="buyWorkerSpeed()" id="btn-buy-wspeed" style="background:#9b59b6;">OPPGRADER</button>
+        </div>
+
+        <button style="background:#e74c3c; color:white; padding: 10px;" onclick="toggleMarket()">AVSLUTT</button>
     </div>
 </div>
 
@@ -233,42 +252,145 @@
     let capCost = 62.5; 
     let mines = [];
     let currentMultiplier = 1;
-    let workers = []; 
-    let workerCost = 100;
+    let usedCodes = [];
     let safetyReduction = 0;
     let safetyCost = 150;
-    let usedCodes = [];
+
+    let workers = []; 
+    let workerCost = 100;
+    let workerSpeedCost = 500;
+    let workerRepairMult = 1.0; 
+    let workerMoveMult = 1.0;
+    let baseRepairTime = 5000; 
 
     const START_YIELD = 1;      
     const START_SPEED = 10000;  
+    const START_UPG_COST = 5; 
     const PRICE_MULT = 1.55; 
     const POWER_MULT = 1.6;
 
     function initMines() {
-        mines = []; // Reset
         for(let i = 0; i < 9; i++) {
             if (i === 0) {
                 mines.push({
                     owned: true, yield: START_YIELD, speed: START_SPEED, progress: 0,
-                    yieldCost: 5, speedCost: 5, yieldLvl: 0, speedLvl: 0, active: false,
-                    isCollapsed: false, repairProgress: 0, graceTimer: 0 
+                    yieldCost: START_UPG_COST, speedCost: START_UPG_COST,
+                    yieldLvl: 0, speedLvl: 0, active: false,
+                    isCollapsed: false, repairProgress: 0,
+                    graceTimer: 0 
                 });
             } else {
-                mines.push({ owned: false, buyCost: 500 * Math.pow(10, i-1) });
+                mines.push({ owned: false, buyCost: 500 });
             }
         }
     }
 
-    function renderGrid() {
-        const gridEl = document.getElementById('grid');
-        gridEl.innerHTML = '';
-        mines.forEach((mine, index) => {
-            const card = document.createElement('div');
-            card.id = `mine-${index}`;
-            card.className = 'mine-card';
-            gridEl.appendChild(card);
+    function checkCollapse(index) {
+        let mine = mines[index];
+        if (mine.graceTimer > 0) return;
+
+        let baseRisk = (mine.yieldLvl + mine.speedLvl) * 0.2; 
+        let risk = Math.max(1, baseRisk - safetyReduction);
+        if (baseRisk <= 0) risk = 0; 
+
+        if (Math.random() * 100 < Math.min(risk, 30)) {
+            triggerCollapse(index);
+        }
+    }
+
+    function triggerCollapse(index) {
+        let mine = mines[index];
+        mine.isCollapsed = true;
+        mine.repairProgress = 0;
+        mine.active = false; 
+        updateMineUI(index);
+    }
+
+    function manualRepair(index, event) {
+        if(event) event.stopPropagation();
+        let mine = mines[index];
+        if (mine.isCollapsed) {
+            mine.repairProgress += 4;
+            if (mine.repairProgress >= 100) {
+                completeRepair(index);
+            }
             updateMineUI(index);
+        }
+    }
+
+    function completeRepair(index) {
+        let mine = mines[index];
+        mine.isCollapsed = false;
+        mine.repairProgress = 0;
+        mine.active = true; 
+        mine.graceTimer = 2500; 
+        
+        let worker = workers.find(w => w.targetIndex === index);
+        if (worker) {
+            worker.state = 'returning';
+            worker.targetIndex = null;
+        }
+        updateMineUI(index);
+    }
+
+    function createWorker() {
+        let id = 'worker-' + Date.now() + Math.random();
+        let el = document.createElement('div');
+        el.className = 'worker-unit';
+        el.innerText = '👷';
+        el.id = id;
+        document.getElementById('worker-layer').appendChild(el);
+        let station = document.getElementById('worker-station').getBoundingClientRect();
+        return { id: id, state: 'idle', targetIndex: null, workTimer: 0, x: station.left, y: station.top };
+    }
+
+    function updateWorkers(diff) {
+        let stationRect = document.getElementById('worker-station').getBoundingClientRect();
+        let stationX = stationRect.left + 30 + window.scrollX;
+        let stationY = stationRect.top + 30 + window.scrollY;
+
+        document.getElementById('worker-count-display').innerText = `${workers.filter(w => w.state === 'idle').length}/${workers.length} ledige`;
+
+        workers.forEach(w => {
+            let el = document.getElementById(w.id);
+            let speed = 0.3 * diff * workerMoveMult; 
+
+            if (w.state === 'idle') {
+                let collapsedIndex = mines.findIndex((m, idx) => m.isCollapsed && !workers.some(worker => worker.targetIndex === idx));
+                if (collapsedIndex !== -1) { w.targetIndex = collapsedIndex; w.state = 'moving_to'; }
+                else { moveTowards(w, stationX, stationY, speed); }
+            }
+            else if (w.state === 'moving_to') {
+                let card = document.getElementById(`mine-${w.targetIndex}`);
+                if (card) {
+                    let rect = card.getBoundingClientRect();
+                    if (moveTowards(w, rect.left + rect.width/2 + window.scrollX, rect.top + rect.height/2 + window.scrollY, speed)) {
+                        w.state = 'working'; w.workTimer = 0;
+                    }
+                }
+            }
+            else if (w.state === 'working') {
+                let requiredTime = baseRepairTime / workerRepairMult;
+                w.workTimer += diff;
+                let mine = mines[w.targetIndex];
+                if(mine && mine.isCollapsed) {
+                    mine.repairProgress = Math.max(mine.repairProgress, (w.workTimer / requiredTime) * 100);
+                    let bar = document.getElementById(`repair-bar-${w.targetIndex}`);
+                    if(bar) bar.style.width = mine.repairProgress + "%";
+                }
+                if (w.workTimer >= requiredTime) completeRepair(w.targetIndex);
+            }
+            else if (w.state === 'returning') {
+                if (moveTowards(w, stationX, stationY, speed)) w.state = 'idle';
+            }
+            el.style.left = w.x + 'px'; el.style.top = w.y + 'px';
         });
+    }
+
+    function moveTowards(obj, tx, ty, step) {
+        let dx = tx - obj.x; let dy = ty - obj.y; let dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist <= step) { obj.x = tx; obj.y = ty; return true; }
+        obj.x += (dx / dist) * step; obj.y += (dy / dist) * step; return false;
     }
 
     function updateMineUI(index) {
@@ -280,29 +402,58 @@
             let yStats = getMultiUpgradeStats(mine.yieldLvl, mine.yieldCost);
             let sStats = getMultiUpgradeStats(mine.speedLvl, mine.speedCost);
 
-            let yBtn = mine.yieldLvl >= maxLevels ? `<button class="locked-btn" disabled>LÅST</button>` 
-                : `<button class="buy-btn" onclick="upgradeYield(${index}, event)">$ (${yStats.count}x) $${Math.ceil(yStats.totalCost)}</button>`;
+            let yBtn = mine.yieldLvl >= maxLevels 
+                ? `<button class="locked-btn" disabled>LÅST</button>` 
+                : `<button class="buy-btn" id="y-btn-${index}" onclick="upgradeYield(${index}, event)">$ (${yStats.count}x) $${Math.ceil(yStats.totalCost)}</button>`;
 
-            let sBtn = mine.speedLvl >= maxLevels ? `<button class="locked-btn" disabled>LÅST</button>` 
-                : `<button class="upg-speed" onclick="upgradeSpeed(${index}, event)">Tid (${sStats.count}x) $${Math.ceil(sStats.totalCost)}</button>`;
+            let sBtn = mine.speedLvl >= maxLevels 
+                ? `<button class="locked-btn" disabled>LÅST</button>` 
+                : `<button class="upg-speed" id="s-btn-${index}" onclick="upgradeSpeed(${index}, event)">Tid (${sStats.count}x) $${Math.ceil(sStats.totalCost)}</button>`;
 
-            let overlay = mine.isCollapsed ? `
+            let overlayHTML = mine.isCollapsed ? `
                 <div class="collapsed-overlay" onclick="manualRepair(${index}, event)">
                     <div class="warning-sign">⚠️</div>
-                    <div class="repair-bar-bg"><div class="repair-bar" id="repair-bar-${index}" style="width:${mine.repairProgress}%"></div></div>
+                    <div style="font-weight:bold; color:#e74c3c;">GRUVEN RASTE!</div>
+                    <div style="font-size:0.7rem; margin-top:5px;">Klikk raskt eller bruk arbeider</div>
+                    <div class="repair-bar-bg"><div class="repair-bar" id="repair-bar-${index}" style="width: ${mine.repairProgress}%"></div></div>
                 </div>` : '';
 
-            card.innerHTML = `${overlay}
+            card.innerHTML = `${overlayHTML}
                 <strong style="color:#f1c40f">Sjakt ${index + 1}</strong>
                 <div class="progress-bg" onclick="activateMine(${index})">
-                    <div class="progress-bar" id="bar-${index}" style="width:${mine.progress}%"></div>
+                    <div class="progress-bar" id="bar-${index}" style="width: ${mine.progress}%"></div>
                 </div>
-                <div style="font-size:0.7rem">Verdi: $${mine.yield.toFixed(1)} | Tid: ${(mine.speed/1000).toFixed(1)}s</div>
-                ${yBtn}${sBtn}`;
+                <div style="font-size: 0.75rem; margin: 3px 0;">
+                    Verdi: $${mine.yield.toLocaleString(undefined, {maximumFractionDigits: 1})}<br>
+                    Syklus: ${(mine.speed/1000).toFixed(1)}s
+                </div>
+                <div>${yBtn}${sBtn}</div>`;
         } else {
-            card.innerHTML = `<div style="margin:auto"><strong>LÅST</strong><br>$${mine.buyCost.toLocaleString()}<br>
-                <button class="buy-btn" onclick="buyMine(${index})">KJØP</button></div>`;
+            card.innerHTML = `<div style="display:flex; flex-direction:column; justify-content:center; height:100%;">
+                <strong style="font-size:1.1rem; color:#bdc3c7;">LÅST SJAKT</strong>
+                <p style="margin:10px 0; color:#f1c40f; font-weight:bold; font-size:1.2rem;">$${mine.buyCost.toLocaleString()}</p>
+                <button class="buy-btn" onclick="buyMine(${index})">KJØP EIENDOM</button></div>`;
         }
+    }
+
+    function spawnParticle(x, y, text) {
+        const p = document.createElement('div');
+        p.className = 'particle'; p.innerText = text;
+        p.style.left = x + 'px'; p.style.top = y + 'px';
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 800);
+    }
+
+    function redeemCode() {
+        const input = document.getElementById('code-input');
+        const code = input.value.trim().toLowerCase();
+        if (code === 'starterpakke' && !usedCodes.includes('starterpakke')) {
+            money += 5; usedCodes.push('starterpakke'); alert('Kode aktivert! Du fikk $5.'); input.value = '';
+        }
+    }
+
+    function buySafetyHelmet() {
+        if (money >= safetyCost) { money -= safetyCost; safetyReduction += 1; safetyCost *= 1.8; updateMarketUI(); }
     }
 
     function getMultiUpgradeStats(lvl, cost) {
@@ -316,110 +467,104 @@
         return { totalCost, count };
     }
 
-    function upgradeYield(idx, e) {
-        e.stopPropagation(); let m = mines[idx]; let s = getMultiUpgradeStats(m.yieldLvl, m.yieldCost);
-        if (money >= s.totalCost && s.count > 0) {
+    function upgradeYield(index, event) {
+        event.stopPropagation(); let m = mines[index]; let s = getMultiUpgradeStats(m.yieldLvl, m.yieldCost);
+        if (s.count > 0 && money >= s.totalCost) {
             money -= s.totalCost; for(let i=0; i<s.count; i++) { m.yield *= POWER_MULT; m.yieldCost *= PRICE_MULT; m.yieldLvl++; }
-            updateMineUI(idx);
+            updateMineUI(index);
         }
     }
 
-    function upgradeSpeed(idx, e) {
-        e.stopPropagation(); let m = mines[idx]; let s = getMultiUpgradeStats(m.speedLvl, m.speedCost);
-        if (money >= s.totalCost && s.count > 0) {
+    function upgradeSpeed(index, event) {
+        event.stopPropagation(); let m = mines[index]; let s = getMultiUpgradeStats(m.speedLvl, m.speedCost);
+        if (s.count > 0 && money >= s.totalCost) {
             money -= s.totalCost; for(let i=0; i<s.count; i++) { m.speed /= POWER_MULT; m.speedCost *= PRICE_MULT; m.speedLvl++; }
-            updateMineUI(idx);
+            updateMineUI(index);
         }
     }
 
-    function buyMine(idx) {
-        if (money >= mines[idx].buyCost) {
-            money -= mines[idx].buyCost;
-            mines[idx] = { owned: true, yield: START_YIELD, speed: START_SPEED, progress: 0, yieldCost: 5, speedCost: 5, yieldLvl: 0, speedLvl: 0, active: true, isCollapsed: false, repairProgress: 0, graceTimer: 0 };
-            updateMineUI(idx);
+    function buyMine(index) {
+        if (!mines[index].owned && money >= mines[index].buyCost) {
+            money -= mines[index].buyCost;
+            mines[index] = { owned: true, yield: START_YIELD, speed: START_SPEED, progress: 0, yieldCost: START_UPG_COST, speedCost: START_UPG_COST, yieldLvl: 0, speedLvl: 0, active: true, isCollapsed: false, repairProgress: 0, graceTimer: 0 };
+            mines.forEach(m => { if(!m.owned) m.buyCost *= 10; });
+            renderGrid();
         }
     }
 
-    function buySafetyHelmet() {
-        if (money >= safetyCost) { money -= safetyCost; safetyReduction++; safetyCost *= 1.8; updateMarketUI(); }
+    function setMultiplier(val) {
+        currentMultiplier = val;
+        document.querySelectorAll('.mult-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('m' + val).classList.add('active');
+        mines.forEach((_, i) => updateMineUI(i));
     }
 
-    function buyWorker() {
-        if (money >= workerCost) { money -= workerCost; workerCost *= 2; workers.push(createWorker()); updateMarketUI(); }
+    function renderGrid() {
+        const gridEl = document.getElementById('grid');
+        gridEl.innerHTML = '';
+        mines.forEach((m, i) => {
+            const card = document.createElement('div');
+            card.id = `mine-${i}`; card.className = 'mine-card';
+            gridEl.appendChild(card); updateMineUI(i);
+        });
+    }
+
+    function toggleMarket() {
+        const modal = document.getElementById('market-modal');
+        modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+        updateMarketUI();
+    }
+
+    function updateMarketUI() {
+        document.getElementById('cap-price-display').innerText = `Pris: $${capCost.toLocaleString()}`;
+        document.getElementById('worker-price-display').innerText = `Pris: $${workerCost.toLocaleString()}`;
+        document.getElementById('wspeed-price-display').innerText = `Pris: $${workerSpeedCost.toLocaleString()}`;
+        document.getElementById('safety-price-display').innerText = `Pris: $${Math.ceil(safetyCost).toLocaleString()}`;
     }
 
     function buyCapUpgrade() {
         if (money >= capCost) { money -= capCost; capCost *= 2; maxLevels += 3; document.getElementById('max-lvl-display').innerText = maxLevels; updateMarketUI(); mines.forEach((_, i) => updateMineUI(i)); }
     }
 
-    function redeemCode() {
-        let input = document.getElementById('code-input');
-        if (input.value.toLowerCase() === 'starterpakke' && !usedCodes.includes('starterpakke')) {
-            money += 5; usedCodes.push('starterpakke'); alert('Du fikk $5!'); input.value = '';
-        }
+    function buyWorker() {
+        if (money >= workerCost) { money -= workerCost; workerCost *= 2; workers.push(createWorker()); updateMarketUI(); }
     }
 
-    function spawnParticle(x, y, text) {
-        let p = document.createElement('div'); p.className = 'particle'; p.innerText = text;
-        p.style.left = x + 'px'; p.style.top = y + 'px'; document.body.appendChild(p);
-        setTimeout(() => p.remove(), 800);
+    function buyWorkerSpeed() {
+        if (money >= workerSpeedCost) { money -= workerSpeedCost; workerSpeedCost *= 1.5; workerRepairMult += 0.2; workerMoveMult += 0.25; updateMarketUI(); }
     }
 
-    function toggleMarket() {
-        let m = document.getElementById('market-modal');
-        m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
-        updateMarketUI();
-    }
-
-    function updateMarketUI() {
-        document.getElementById('safety-cost').innerText = Math.ceil(safetyCost);
-        document.getElementById('worker-cost').innerText = Math.ceil(workerCost);
-        document.getElementById('safety-display').innerText = safetyReduction;
-    }
-
-    function setMultiplier(v) {
-        currentMultiplier = v;
-        document.querySelectorAll('.mult-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('m' + v).classList.add('active');
-        mines.forEach((_, i) => updateMineUI(i));
-    }
-
-    function createWorker() {
-        let id = 'w-' + Math.random();
-        let el = document.createElement('div'); el.className = 'worker-unit'; el.innerText = '👷'; el.id = id;
-        document.getElementById('worker-layer').appendChild(el);
-        return { id, state: 'idle', x: 0, y: 0, targetIndex: null, workTimer: 0 };
-    }
-
-    function activateMine(idx) { if (mines[idx].owned && !mines[idx].isCollapsed) mines[idx].active = true; }
-
-    function manualRepair(idx, e) {
-        e.stopPropagation(); mines[idx].repairProgress += 5;
-        if (mines[idx].repairProgress >= 100) { mines[idx].isCollapsed = false; mines[idx].active = true; mines[idx].repairProgress = 0; updateMineUI(idx); }
-        else { document.getElementById(`repair-bar-${idx}`).style.width = mines[idx].repairProgress + '%'; }
+    function activateMine(index) {
+        if (mines[index].owned && !mines[index].active && !mines[index].isCollapsed) { mines[index].active = true; updateMineUI(index); }
     }
 
     let lastTime = Date.now();
     function gameLoop() {
         let now = Date.now(); let diff = now - lastTime; lastTime = now;
-        
-        mines.forEach((m, i) => {
-            if (m.owned && m.active && !m.isCollapsed) {
-                m.progress += (diff / m.speed) * 100;
-                if (m.progress >= 100) {
-                    m.progress = 0; money += m.yield;
-                    let rect = document.getElementById(`mine-${i}`).getBoundingClientRect();
-                    spawnParticle(rect.left + 20, rect.top, `+$${m.yield.toFixed(1)}`);
-                    
-                    let risk = Math.max(1, ((m.yieldLvl + m.speedLvl) * 0.2) - safetyReduction);
-                    if (Math.random() * 100 < risk) { m.isCollapsed = true; m.active = false; updateMineUI(i); }
+
+        mines.forEach((mine, index) => {
+            if (mine.owned) {
+                if (mine.graceTimer > 0) mine.graceTimer -= diff;
+                if (!mine.isCollapsed && mine.active) {
+                    mine.progress += (diff / mine.speed) * 100;
+                    if (mine.progress >= 100) {
+                        mine.progress = 0; money += mine.yield;
+                        const rect = document.getElementById(`mine-${index}`).getBoundingClientRect();
+                        spawnParticle(rect.left + rect.width/2, rect.top, `+$${mine.yield.toFixed(1)}`);
+                        checkCollapse(index); 
+                    }
+                } else if (mine.isCollapsed) {
+                    if (!workers.some(w => w.targetIndex === index && w.state === 'working')) {
+                        mine.repairProgress = Math.max(0, mine.repairProgress - (0.05 * (diff/16)));
+                    }
                 }
-                let bar = document.getElementById(`bar-${i}`);
-                if (bar) bar.style.width = m.progress + '%';
+                const bar = document.getElementById(`bar-${index}`);
+                if (bar) bar.style.width = Math.min(mine.progress, 100) + "%";
             }
         });
 
-        document.getElementById('total-balance').innerText = money.toLocaleString(undefined, {minimumFractionDigits:2});
+        updateWorkers(diff); 
+        document.getElementById('total-balance').innerText = money.toLocaleString(undefined, {minimumFractionDigits: 2});
         requestAnimationFrame(gameLoop);
     }
 
