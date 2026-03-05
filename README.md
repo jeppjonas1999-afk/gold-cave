@@ -28,6 +28,38 @@
             position: relative;
         }
 
+        /* NY KONTO FOR LEADERBOARD */
+        .leaderboard-column {
+            width: 180px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .leaderboard-card {
+            background: #2c3e50;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            min-height: 250px;
+            border: 2px solid #f1c40f;
+        }
+        
+        .leaderboard-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 0 0;
+            font-size: 0.8rem;
+        }
+        .leaderboard-list li {
+            background: #34495e;
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 6px;
+            border-left: 3px solid #f1c40f;
+        }
+        .lb-name { font-weight: bold; color: #3498db; font-size: 0.9rem;}
+        .lb-stats { color: #bdc3c7; font-size: 0.75rem; margin-top: 3px;}
+
         .grid-container {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -104,7 +136,6 @@
             position: relative;
         }
 
-        /* KODEBOKS */
         .code-station {
             background: #273746;
             border: 2px dashed #7f8c8d;
@@ -123,6 +154,15 @@
             text-align: center;
         }
 
+        /* REBIRTH & DEPOSIT STASJON */
+        .prestige-station {
+            background: #2c3e50;
+            border: 2px solid #8e44ad;
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+        }
+
         .worker-count { font-size: 0.8rem; color: #bdc3c7; }
         .worker-icon-static { font-size: 1.5rem; }
 
@@ -133,7 +173,6 @@
             pointer-events: none;
         }
 
-        /* PARTIKLER */
         .particle {
             position: fixed;
             pointer-events: none;
@@ -176,10 +215,19 @@
 <div class="header">
     <h1 style="margin: 5px 0;">Mineshaft Tycoon</h1>
     <div class="balance-display">$<span id="total-balance">0.00</span></div>
-    <div style="color: #f1c40f; font-size: 0.85rem;">Maks Nivå: <span id="max-lvl-display">3</span></div>
+    <div style="color: #f1c40f; font-size: 0.85rem;">Maks Nivå: <span id="max-lvl-display">3</span> | Rebirths: <span id="rebirth-display">0</span></div>
 </div>
 
 <div class="game-area">
+    
+    <div class="leaderboard-column">
+        <div class="leaderboard-card">
+            <h3 style="margin:0; color:#f1c40f; text-align:center;">🏆 TOPP 5</h3>
+            <ul class="leaderboard-list" id="leaderboard-list">
+                </ul>
+        </div>
+    </div>
+
     <div class="grid-container" id="grid"></div>
     
     <div class="controls-column">
@@ -204,6 +252,11 @@
             <div style="font-size:0.7rem; font-weight:bold; color:#95a5a6; margin-bottom:2px;">KODER</div>
             <input type="text" id="code-input" class="code-input" placeholder="Skriv kode...">
             <button class="buy-btn" style="background:#27ae60; padding:3px;" onclick="redeemCode()">OK</button>
+        </div>
+
+        <div class="prestige-station">
+            <button class="buy-btn" style="background:#8e44ad; margin-bottom: 8px;" onclick="doRebirth()">REBIRTH (+20% Effekt)</button>
+            <button class="buy-btn" style="background:#c0392b;" onclick="doDeposit()">DEPOSIT (Topp 5)</button>
         </div>
     </div>
 </div>
@@ -255,6 +308,7 @@
     let usedCodes = [];
     let safetyReduction = 0;
     let safetyCost = 150;
+    let rebirths = 0; // NYTT: Rebirth teller
 
     let workers = []; 
     let workerCost = 100;
@@ -267,9 +321,13 @@
     const START_SPEED = 10000;  
     const START_UPG_COST = 5; 
     const PRICE_MULT = 1.55; 
-    const POWER_MULT = 1.6;
+    const BASE_POWER_MULT = 1.6; 
+
+    // Henter lokalt leaderboard hvis det finnes
+    let leaderboard = JSON.parse(localStorage.getItem('mst_leaderboard')) || [];
 
     function initMines() {
+        mines = [];
         for(let i = 0; i < 9; i++) {
             if (i === 0) {
                 mines.push({
@@ -284,6 +342,94 @@
             }
         }
     }
+
+    // --- NYE FUNKSJONER FOR LEADERBOARD, REBIRTH OG DEPOSIT ---
+
+    function renderLeaderboard() {
+        const list = document.getElementById('leaderboard-list');
+        list.innerHTML = '';
+        
+        if (leaderboard.length === 0) {
+            list.innerHTML = '<li style="text-align:center; color:#7f8c8d;">Ingen spillere ennå!</li>';
+            return;
+        }
+
+        leaderboard.forEach((player, index) => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <div class="lb-name">#${index + 1} ${player.name}</div>
+                <div class="lb-stats">Penger: $${player.money.toLocaleString(undefined, {maximumFractionDigits: 0})}<br>Rebirths: ${player.rebirths}</div>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    function doRebirth() {
+        if (confirm("Vil du ta Rebirth? Du mister alle penger, oppgraderinger og gruver. Men oppgraderinger blir 1.2x mer effektive (stables)!")) {
+            rebirths++;
+            hardReset(false); // false betyr "ikke fjern koder og rebirths"
+            alert("Rebirth utført! Oppgraderingene dine er nå mye sterkere.");
+        }
+    }
+
+    function doDeposit() {
+        // Sjekk om spilleren har nok til å komme på lista (hvis lista er full)
+        if (leaderboard.length >= 5) {
+            let lowestScore = leaderboard[4].money;
+            if (money <= lowestScore) {
+                alert(`Beklager! Du trenger mer enn $${lowestScore.toLocaleString()} for å slå 5. plassen.`);
+                return;
+            }
+        }
+
+        let playerName = prompt("Gratulerer, du klarte Topp 5! Skriv inn navnet ditt (Du mister alt for å lagre):");
+        if (!playerName) return; // Avbryt hvis de trykker "cancel"
+
+        // Legg til spiller, sorter og kutt til max 5
+        leaderboard.push({ name: playerName, money: money, rebirths: rebirths });
+        leaderboard.sort((a, b) => b.money - a.money);
+        if (leaderboard.length > 5) {
+            leaderboard.pop();
+        }
+
+        // Lagre lokalt
+        localStorage.setItem('mst_leaderboard', JSON.stringify(leaderboard));
+        renderLeaderboard();
+
+        // DEPOSIT nullstiller ABSOLUTT alt (ink. koder og rebirths)
+        rebirths = 0;
+        usedCodes = [];
+        hardReset(true); 
+        alert("Progress lagret på Topp 5! Du har nå startet helt på nytt.");
+    }
+
+    function hardReset(fullReset) {
+        money = 0;
+        maxLevels = 3;
+        capCost = 62.5;
+        safetyReduction = 0;
+        safetyCost = 150;
+        workerCost = 100;
+        workerSpeedCost = 500;
+        workerRepairMult = 1.0;
+        workerMoveMult = 1.0;
+        
+        // Fjern arbeidere fra skjermen
+        workers.forEach(w => {
+            let el = document.getElementById(w.id);
+            if(el) el.remove();
+        });
+        workers = [];
+
+        document.getElementById('max-lvl-display').innerText = maxLevels;
+        document.getElementById('rebirth-display').innerText = rebirths;
+        
+        initMines();
+        renderGrid();
+        updateMarketUI();
+    }
+
+    // -----------------------------------------------------------
 
     function checkCollapse(index) {
         let mine = mines[index];
@@ -468,9 +614,19 @@
     }
 
     function upgradeYield(index, event) {
-        event.stopPropagation(); let m = mines[index]; let s = getMultiUpgradeStats(m.yieldLvl, m.yieldCost);
+        event.stopPropagation(); 
+        let m = mines[index]; 
+        let s = getMultiUpgradeStats(m.yieldLvl, m.yieldCost);
         if (s.count > 0 && money >= s.totalCost) {
-            money -= s.totalCost; for(let i=0; i<s.count; i++) { m.yield *= POWER_MULT; m.yieldCost *= PRICE_MULT; m.yieldLvl++; }
+            money -= s.totalCost; 
+            // Her legges Rebirth-effekten til. Oppgraderinger blir 1.2 ganger sterkere per rebirth.
+            let currentPowerMult = BASE_POWER_MULT * Math.pow(1.2, rebirths);
+
+            for(let i=0; i<s.count; i++) { 
+                m.yield *= currentPowerMult; 
+                m.yieldCost *= PRICE_MULT; 
+                m.yieldLvl++; 
+            }
             updateMineUI(index);
         }
     }
@@ -478,7 +634,7 @@
     function upgradeSpeed(index, event) {
         event.stopPropagation(); let m = mines[index]; let s = getMultiUpgradeStats(m.speedLvl, m.speedCost);
         if (s.count > 0 && money >= s.totalCost) {
-            money -= s.totalCost; for(let i=0; i<s.count; i++) { m.speed /= POWER_MULT; m.speedCost *= PRICE_MULT; m.speedLvl++; }
+            money -= s.totalCost; for(let i=0; i<s.count; i++) { m.speed /= BASE_POWER_MULT; m.speedCost *= PRICE_MULT; m.speedLvl++; }
             updateMineUI(index);
         }
     }
@@ -570,6 +726,7 @@
 
     initMines();
     renderGrid();
+    renderLeaderboard(); // Tegner leaderboardet når siden starter
     gameLoop();
 </script>
 
